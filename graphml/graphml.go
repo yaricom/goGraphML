@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"errors"
 	"reflect"
+	"io"
 )
 
 // The the elements where data-function can be attached
@@ -40,7 +41,7 @@ type GraphML struct {
 	// The custom keys describing data-functions used in this or other elements
 	keys             []*Key         `xml:"key,omitempty"`
 	// The data associated with root element
-	datas            []*Data        `xml:"data,omitempty"`
+	data             []*Data        `xml:"data,omitempty"`
 	// The graph objects encapsulated
 	graphs           []*Graph       `xml:"graph,omitempty"`
 
@@ -137,12 +138,22 @@ func NewGraphML(description string) *GraphML {
 	gml := GraphML{
 		Description:description,
 		keys:make([]*Key, 0),
-		datas:make([]*Data, 0),
+		data:make([]*Data, 0),
 		graphs:make([]*Graph, 0),
 		xmlns:"http://graphml.graphdrawing.org/xmlns",
 		keysByIdentifier:make(map[string]*Key),
 	}
 	return &gml
+}
+
+// Encodes GraphML into provided Writer
+func (gml *GraphML) Encode(w io.Writer) error {
+	enc := xml.NewEncoder(w)
+	err := enc.Encode(gml)
+	if err == nil {
+		err = enc.Flush()
+	}
+	return err
 }
 
 // Register data function with GraphML instance

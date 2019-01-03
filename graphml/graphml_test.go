@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"reflect"
 	"fmt"
+	"bytes"
+	"encoding/xml"
 )
 
 func TestNewGraphML(t *testing.T) {
@@ -18,6 +20,58 @@ func TestNewGraphML(t *testing.T) {
 	if gml.Description != description {
 		t.Error("gml.desc != description", gml.Description)
 	}
+}
+
+func TestGraphML_Encode(t *testing.T) {
+	// build GraphML
+	description := "test graph"
+	gml := NewGraphML("TestGraphML_Encode")
+
+	attributes := make(map[string]interface{})
+	attributes["double"] = 100.1
+	attributes["bool"] = false
+	attributes["integer"] = 120
+	attributes["string"] = "string data"
+	// add graph
+	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	// add nodes
+	description = "test node #1"
+	n1, err := graph.AddNode(attributes, description)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	description = "test node #2"
+	n2, err := graph.AddNode(attributes, description)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	// add edge
+	description = "test edge"
+	_, err = graph.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// encode
+	out_buf := bytes.NewBufferString("")
+	err = gml.Encode(out_buf)
+
+	// check results
+	t.Log(out_buf)
+
+	bytes, err := xml.Marshal(gml)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Log(string(bytes))
 }
 
 func TestGraphML_AddGraph(t *testing.T) {
