@@ -4,6 +4,7 @@ import (
 	"testing"
 	"strconv"
 	"reflect"
+	"fmt"
 )
 
 func TestNewGraphML(t *testing.T) {
@@ -57,7 +58,7 @@ func TestGraphML_RegisterKey(t *testing.T) {
 	keyName := "weight"
 	keyDescr := "the weight function"
 	keyDefault := 100.0
-	err, _ := gml.RegisterKey(KeyForNode, keyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault)
+	_, err := gml.RegisterKey(KeyForNode, keyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault)
 	if err != nil {
 		t.Error(err)
 		return
@@ -81,15 +82,22 @@ func TestGraphML_RegisterKey(t *testing.T) {
 	} else if keyDefault != val {
 		t.Error("keyDefault != val", keyDefault, val)
 	}
-	if gml.keys[0].keyFor != KeyForNode {
-		t.Error("gml.keys[0].keyFor != KeyForNode", gml.keys[0].keyFor)
+	if gml.keys[0].target != KeyForNode {
+		t.Error("gml.keys[0].keyFor != KeyForNode", gml.keys[0].target)
 	}
 	if gml.keys[0].ID != "d0" {
 		t.Error("gml.keys[0].ID != d0", gml.keys[0].ID)
 	}
 
+	// register key with the same standard identifier and check that error raised
+	_, err = gml.RegisterKey(KeyForNode, keyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault + 100)
+	if err == nil {
+		t.Error("error should be raised when attempting to register Key with already existing standard identifier")
+	}
+
 	// register another key and check ID
-	err, _ = gml.RegisterKey(KeyForNode, keyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault + 100)
+	keyName = "height"
+	_, err = gml.RegisterKey(KeyForNode, keyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault + 100)
 	if err != nil {
 		t.Error(err)
 		return
@@ -136,22 +144,28 @@ func TestGraph_AddNode(t *testing.T) {
 	if len(node.data) != 4 {
 		t.Error("len(node.data) != 4", len(node.data))
 	}
-	for key := range attributes {
-		if _, ok := gr.parent.keysByName[key]; !ok {
-			t.Error("failed to find Key with name:", key)
+	count := 0
+	for name, val := range attributes {
+		keyNameId := keyIdentifier(name, KeyForNode)
+		if key := gr.parent.GetKey(name, KeyForNode); key == nil {
+			t.Error("failed to find Key with standard identifier:", keyNameId)
+			return
+		} else {
+			// check if attribute data value was saved
+			for i, node := range node.data {
+				if node.key == key.ID {
+					str_val := fmt.Sprint(val)
+					if node.value != str_val {
+						t.Error("node.value != str_val at:", i)
+					}
+					// increment counter to count this attribute
+					count++
+				}
+			}
 		}
 	}
-	if node.data[0].value != "100.1" {
-		t.Error("wrong value at node.data[0]", node.data[0].value)
-	}
-	if node.data[1].value != "false" {
-		t.Error("wrong value at node.data[1]", node.data[1].value)
-	}
-	if node.data[2].value != "120" {
-		t.Error("wrong value at node.data[2]", node.data[2].value)
-	}
-	if node.data[3].value != "string data" {
-		t.Error("wrong value at node.data[3]", node.data[3].value)
+	if count != len(attributes) {
+		t.Error("failed to check all nodes")
 	}
 }
 

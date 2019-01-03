@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"errors"
 	"reflect"
-	"strconv"
 )
 
 // The the elements where data-function can be attached
@@ -32,21 +31,21 @@ const (
 // The root element
 type GraphML struct {
 	// The name of root element
-	XMLName     xml.Name      `xml:"graphml"`
+	XMLName          xml.Name      `xml:"graphml"`
 	// The name space definitions
-	xmlns       string        `xml:"xmlns,attr"`
+	xmlns            string        `xml:"xmlns,attr"`
 
 	// Provides human readable description
-	Description string        `xml:"desc,omitempty"`
+	Description      string        `xml:"desc,omitempty"`
 	// The custom keys describing data-functions used in this or other elements
-	keys        []*Key         `xml:"key,omitempty"`
+	keys             []*Key         `xml:"key,omitempty"`
 	// The data associated with root element
-	datas       []*Data        `xml:"data,omitempty"`
+	datas            []*Data        `xml:"data,omitempty"`
 	// The graph objects encapsulated
-	graphs      []*Graph       `xml:"graph,omitempty"`
+	graphs           []*Graph       `xml:"graph,omitempty"`
 
-	// The map to define keys by data-function name
-	keysByName  map[string]*Key
+	// The map to look for keys by their standard identifiers (see keyIdentifier(name string, target KeyForElement))
+	keysByIdentifier map[string]*Key
 }
 
 // Description: In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint
@@ -56,7 +55,7 @@ type Key struct {
 	// The ID of this key element (in form dX, where X denotes the number of occurrences of the key element before the current one)
 	ID           string        `xml:"id,attr"`
 	// The name of element this key is for (graphml|graph|node|edge|hyperedge|port|endpoint|all)
-	keyFor       KeyForElement        `xml:"for,attr"`
+	target       KeyForElement `xml:"for,attr"`
 	// The name of data-function associated with this key
 	name         string        `xml:"attr.name,attr"`
 	// The type of input to the data-function associated with this key. (Allowed values: boolean, int, long, float, double, string)
@@ -132,20 +131,20 @@ func NewGraphML(description string) *GraphML {
 		datas:make([]*Data, 0),
 		graphs:make([]*Graph, 0),
 		xmlns:"http://graphml.graphdrawing.org/xmlns",
-		keysByName:make(map[string]*Key),
+		keysByIdentifier:make(map[string]*Key),
 	}
 	return &gml
 }
 
 // Register data function with GraphML instance
-func (gml *GraphML) RegisterKey(forElem KeyForElement, name, description string, keyType reflect.Kind, defaultValue interface{}) (key *Key, err error) {
-	if _, ok := gml.keysByName[name]; ok {
+func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, keyType reflect.Kind, defaultValue interface{}) (key *Key, err error) {
+	if key := gml.GetKey(name, target); key != nil {
 		return nil, errors.New("key with given name already registered")
 	}
 	count := len(gml.keys)
 	key = &Key{
 		ID:fmt.Sprintf("d%d", count),
-		keyFor:forElem,
+		target:target,
 		name:name,
 		Description:description,
 	}
@@ -166,6 +165,15 @@ func (gml *GraphML) RegisterKey(forElem KeyForElement, name, description string,
 	gml.addKey(key)
 
 	return key, nil
+}
+
+// Looks for registered keys with specified name for a given target element. Returns Key or nil.
+func (gml *GraphML) GetKey(name string, target KeyForElement) *Key {
+	keyNameId := keyIdentifier(name, target)
+	if key, ok := gml.keysByIdentifier[keyNameId]; ok {
+		return key
+	}
+	return nil
 }
 
 // Creates new Graph withing GraphML
@@ -203,15 +211,17 @@ func (gr *Graph) AddNode(attributes map[string]interface{}, description string) 
 		data:make([]*Data, 0),
 	}
 	// add attributes
-	var key_func *Key
-	ok := false
 	for key, val := range attributes {
-		if key_func, ok = gr.parent.keysByName[key]; !ok {
+		key_func := gr.parent.GetKey(key, KeyForNode)
+		if key_func == nil {
+			// register new Key
 			if key_func, err = gr.parent.RegisterKey(KeyForNode, key, "", reflect.TypeOf(val).Kind(), nil); err != nil {
+				// failed
 				return nil, err
 			}
 		}
 		if err := node.addDataWithKey(key, val, key_func); err != nil {
+			// failed
 			return nil, err
 		}
 	}
@@ -234,6 +244,18 @@ func (n *Node) addDataWithKey(name string, value interface{}, key *Key) (err err
 
 	n.data = append(n.data, data)
 	return nil
+}
+
+// appends given key
+func (gml *GraphML) addKey(key *Key) {
+	gml.keys = append(gml.keys, key)
+	keyNameId := keyIdentifier(key.name, key.target)
+	gml.keysByIdentifier[keyNameId] = key
+}
+
+// returns standard key identifier based on provided name and target
+func keyIdentifier(name string, target KeyForElement) string {
+	return fmt.Sprintf("%s_for_%s", name, target)
 }
 
 // Returns type name for a given kind
@@ -261,45 +283,33 @@ func typeNameForKind(kind reflect.Kind) (string, error) {
 // Converts provided value to string if it's supported by this keyType
 func stringValueIfSupported(value interface{}, keyType string) (string, error) {
 	res := "unsupported"
+	// check that key and value types compatible
 	switch keyType {
 	case "boolean":
 		if reflect.TypeOf(value).Kind() != reflect.Bool {
 			return res, errors.New("default value has wrong data type when boolean expected")
-		} else {
-			res = strconv.FormatBool(value.(bool))
 		}
 	case "int", "long":
 		if defTypeName, err := typeNameForKind(reflect.TypeOf(value).Kind()); err != nil {
 			return res, err
-		} else if defTypeName == "int" || defTypeName == "long" {
-			res = fmt.Sprintf("%d", value)
-		} else {
-			return res, errors.New(fmt.Sprintf("default value has wrong data type when int/long expected: %s", defTypeName))
+		} else if !(defTypeName == "int" || defTypeName == "long") {
+			return res, errors.New(
+				fmt.Sprintf("default value has wrong data type when int/long expected: %s", defTypeName))
 		}
 	case "float", "double":
 		if defTypeName, err := typeNameForKind(reflect.TypeOf(value).Kind()); err != nil {
 			return res, err
-		} else if defTypeName == "float" {
-			res = strconv.FormatFloat(float64(value.(float32)), 'f', -1, 32)
-		} else if defTypeName == "double" {
-			res = strconv.FormatFloat(value.(float64), 'f', -1, 64)
-		} else {
-			return res, errors.New("default value has wrong data type when float/double expected")
+		} else if !(defTypeName == "float" || defTypeName == "double") {
+			return res, errors.New(
+				fmt.Sprintf("default value has wrong data type when float/double expected: %s", defTypeName))
 		}
 	case "string":
 		if defTypeName, err := typeNameForKind(reflect.TypeOf(value).Kind()); err != nil {
 			return res, err
-		} else if defTypeName == "string" {
-			res = value.(string)
-		} else {
-			return res, errors.New("default value has wrong data type when string expected")
+		} else if defTypeName != "string" {
+			return res, errors.New(
+				fmt.Sprintf("default value has wrong data type when string expected: %s", defTypeName))
 		}
 	}
-	return res, nil
-}
-
-// appends given key
-func (gml *GraphML) addKey(key *Key) {
-	gml.keys = append(gml.keys, key)
-	gml.keysByName[key.name] = key
+	return fmt.Sprint(value), nil
 }
