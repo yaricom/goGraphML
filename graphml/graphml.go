@@ -83,22 +83,26 @@ type Data struct {
 // Describes one graph in this document. Occurrence: <graphml>, <node>, <edge>, <hyperedge>.
 type Graph struct {
 	// The ID of this graph element (in form gX, where X denotes the number of occurrences of the graph element before the current one)
-	ID          string        `xml:"id,attr"`
+	ID             string        `xml:"id,attr"`
 	// The default edge direction (directed|undirected)
-	edgeDefault string        `xml:"edgedefault,attr"`
+	edgeDefault    string        `xml:"edgedefault,attr"`
 
 	// Provides human readable description
-	Description string        `xml:"desc,omitempty"`
+	Description    string        `xml:"desc,omitempty"`
 	// The nodes associated with this graph
-	nodes       []*Node        `xml:"node,omitempty"`
+	nodes          []*Node        `xml:"node,omitempty"`
 	// The edges associated with this graph and connecting nodes
-	edges       []*Edge        `xml:"edge,omitempty"`
+	edges          []*Edge        `xml:"edge,omitempty"`
 
 	// The data associated with this node
-	data        []*Data        `xml:"data,omitempty"`
+	data           []*Data        `xml:"data,omitempty"`
 
 	// The parent GraphML
-	parent      *GraphML
+	parent         *GraphML
+	// The map of edges by connected nodes
+	edgesMap       map[string]*Edge
+	// The default edge direction flag
+	edgesDirection EdgeDirection
 }
 
 // Describes one node in the <graph> containing this <node>. Occurrence: <graph>.
@@ -114,16 +118,18 @@ type Node struct {
 // Describes an edge in the <graph> which contains this <edge>. Occurrence: <graph>.
 type Edge struct {
 	// The ID of this edge element (in form eX, where X is the number of edge elements before this one)
-	ID       string           `xml:"id,attr"`
+	ID          string           `xml:"id,attr"`
 	// The source node ID
-	Source   string           `xml:"source,attr"`
+	source      string           `xml:"source,attr"`
 	// The target node ID
-	Target   string           `xml:"target,attr"`
+	target      string           `xml:"target,attr"`
 	// The direction type of this edge (true - directed, false - undirected)
-	Directed string           `xml:"directed,attr"`
+	directed    string           `xml:"directed,attr"`
 
+	// Provides human readable description
+	Description string           `xml:"desc,omitempty"`
 	// The data associated with this edge
-	Data     []*Data           `xml:"data,omitempty"`
+	data        []*Data          `xml:"data,omitempty"`
 }
 
 // Creates new GraphML instance
@@ -152,7 +158,7 @@ func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, 
 		Description:description,
 	}
 	// add key type (boolean, int, long, float, double, string)
-	if key.keyType, err = typeNameForKind(keyType);err != nil {
+	if key.keyType, err = typeNameForKind(keyType); err != nil {
 		return nil, err
 	}
 
@@ -198,6 +204,8 @@ func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attr
 		nodes:make([]*Node, 0),
 		edges:make([]*Edge, 0),
 		parent:gml,
+		edgesMap:make(map[string]*Edge),
+		edgesDirection:edgeDefault,
 	}
 	// add attributes
 	if graph.data, err = gml.createDataAttributes(attributes, KeyForGraph); err != nil {
@@ -227,11 +235,51 @@ func (gr *Graph) AddNode(attributes map[string]interface{}, description string) 
 	return node, nil
 }
 
+// Adds edge to the graph which connects two its nodes with provided additional attributes and description
+func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}, edgeDirection EdgeDirection, description string) (edge *Edge, err error) {
+	// test if edge already exists
+	edge_identification := edgeIdentifier(source.ID, target.ID)
+	exists := false
+	if _, exists = gr.edgesMap[edge_identification]; !exists && (edgeDirection == EdgeDirectionUndirected || gr.edgesDirection == EdgeDirectionUndirected) {
+		// check other direction for undirected edge or graph types
+		edge_identification = edgeIdentifier(target.ID, source.ID)
+		_, exists = gr.edgesMap[edge_identification]
+	}
+	if exists {
+		return nil, errors.New("edge already added to the graph")
+	}
+
+	count := len(gr.edges)
+	edge = &Edge{
+		ID:fmt.Sprintf("e%d", count),
+		source:source.ID,
+		target:target.ID,
+		Description:description,
+	}
+	switch edgeDirection {
+	case EdgeDirectionDirected:
+		edge.directed = "true"
+	case EdgeDirectionUndirected:
+		edge.directed = "false"
+	}
+
+	// add attributes
+	if edge.data, err = gr.parent.createDataAttributes(attributes, KeyForEdge); err != nil {
+		return nil, err
+	}
+
+	// add edge
+	gr.edges = append(gr.edges, edge)
+	gr.edgesMap[edgeIdentifier(source.ID, target.ID)] = edge
+
+	return edge, nil
+}
+
 // appends given key
 func (gml *GraphML) addKey(key *Key) {
 	gml.keys = append(gml.keys, key)
-	keyNameId := keyIdentifier(key.name, key.target)
-	gml.keysByIdentifier[keyNameId] = key
+	key_identifier := keyIdentifier(key.name, key.target)
+	gml.keysByIdentifier[key_identifier] = key
 }
 
 // Creates data-functions from given attributes and appends definitions of created functions to the provided data list.
@@ -268,6 +316,11 @@ func createDataWithKey(value interface{}, key *Key) (data *Data, err error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+// returns standard edge identifier based on provided iDs of connected nodes
+func edgeIdentifier(soure, target string) string {
+	return fmt.Sprintf("%s<->%s", soure, target)
 }
 
 // returns standard key identifier based on provided name and target
