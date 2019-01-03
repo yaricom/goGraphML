@@ -152,14 +152,13 @@ func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, 
 		Description:description,
 	}
 	// add key type (boolean, int, long, float, double, string)
-	key.keyType, err = typeNameForKind(keyType)
-	if err != nil {
+	if key.keyType, err = typeNameForKind(keyType);err != nil {
 		return nil, err
 	}
+
 	// store default value
 	if defaultValue != nil {
-		key.defaultValue, err = stringValueIfSupported(defaultValue, key.keyType)
-		if err != nil {
+		if key.defaultValue, err = stringValueIfSupported(defaultValue, key.keyType); err != nil {
 			return nil, err
 		}
 	}
