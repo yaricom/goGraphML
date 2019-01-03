@@ -20,12 +20,18 @@ func TestNewGraphML(t *testing.T) {
 	}
 }
 
-func TestGraphML_CreateGraph(t *testing.T) {
+func TestGraphML_AddGraph(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
 
 	// test normal creation
-	gr, err := gml.CreateGraph(description, EdgeDirectionDirected)
+	attributes := make(map[string]interface{})
+	attributes["double"] = 100.1
+	attributes["bool"] = false
+	attributes["integer"] = 120
+	attributes["string"] = "string data"
+
+	gr, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
 	if err != nil {
 		t.Error(err)
 		return
@@ -44,8 +50,39 @@ func TestGraphML_CreateGraph(t *testing.T) {
 		t.Error("len(gml.graphs) != 1", len(gml.graphs))
 	}
 
+	// check attributes processing
+	if len(gr.parent.keys) != 4 {
+		t.Error("len(gr.parent.keys) != 4", len(gr.parent.keys))
+	}
+	if len(gr.data) != 4 {
+		t.Error("len(node.data) != 4", len(gr.data))
+	}
+	count := 0
+	for name, val := range attributes {
+		keyNameId := keyIdentifier(name, KeyForGraph)
+		if key := gr.parent.GetKey(name, KeyForGraph); key == nil {
+			t.Error("failed to find Key with standard identifier:", keyNameId)
+			return
+		} else {
+			// check if attribute data value was saved
+			for i, data := range gr.data {
+				if data.key == key.ID {
+					str_val := fmt.Sprint(val)
+					if data.value != str_val {
+						t.Error("node.value != str_val at:", i)
+					}
+					// increment counter to count this attribute
+					count++
+				}
+			}
+		}
+	}
+	if count != len(attributes) {
+		t.Error("failed to check all nodes")
+	}
+
 	// test error
-	gr, err = gml.CreateGraph(description, EdgeDirectionDefault)
+	gr, err = gml.AddGraph(description, EdgeDirectionDefault, nil)
 	if err == nil {
 		t.Error("error must be raised when default edge direction not provided")
 	}
@@ -114,7 +151,7 @@ func TestGraphML_RegisterKey(t *testing.T) {
 func TestGraph_AddNode(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
-	gr, err := gml.CreateGraph(description, EdgeDirectionDirected)
+	gr, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -152,10 +189,10 @@ func TestGraph_AddNode(t *testing.T) {
 			return
 		} else {
 			// check if attribute data value was saved
-			for i, node := range node.data {
-				if node.key == key.ID {
+			for i, data := range node.data {
+				if data.key == key.ID {
 					str_val := fmt.Sprint(val)
-					if node.value != str_val {
+					if data.value != str_val {
 						t.Error("node.value != str_val at:", i)
 					}
 					// increment counter to count this attribute

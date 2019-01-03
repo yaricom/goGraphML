@@ -94,6 +94,9 @@ type Graph struct {
 	// The edges associated with this graph and connecting nodes
 	edges       []*Edge        `xml:"edge,omitempty"`
 
+	// The data associated with this node
+	data        []*Data        `xml:"data,omitempty"`
+
 	// The parent GraphML
 	parent      *GraphML
 }
@@ -176,8 +179,8 @@ func (gml *GraphML) GetKey(name string, target KeyForElement) *Key {
 	return nil
 }
 
-// Creates new Graph withing GraphML
-func (gml *GraphML) CreateGraph(description string, edgeDefault EdgeDirection) (*Graph, error) {
+// Creates new Graph and add it to the root GraphML
+func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attributes map[string]interface{}) (graph *Graph, err error) {
 	count := len(gml.graphs)
 	var edge_direction string
 	switch edgeDefault {
@@ -189,7 +192,7 @@ func (gml *GraphML) CreateGraph(description string, edgeDefault EdgeDirection) (
 		return nil, errors.New("default edge direction must provided")
 	}
 
-	gr := &Graph{
+	graph = &Graph{
 		ID:fmt.Sprintf("g%d", count),
 		edgeDefault:edge_direction,
 		Description:description,
@@ -197,9 +200,14 @@ func (gml *GraphML) CreateGraph(description string, edgeDefault EdgeDirection) (
 		edges:make([]*Edge, 0),
 		parent:gml,
 	}
+	// add attributes
+	if graph.data, err = gml.createDataAttributes(attributes, KeyForGraph); err != nil {
+		return nil, err
+	}
+
 	// store graph in parent
-	gml.graphs = append(gml.graphs, gr)
-	return gr, nil
+	gml.graphs = append(gml.graphs, graph)
+	return graph, nil
 }
 
 // Adds node to the graph with provided additional attributes and description
@@ -211,39 +219,13 @@ func (gr *Graph) AddNode(attributes map[string]interface{}, description string) 
 		data:make([]*Data, 0),
 	}
 	// add attributes
-	for key, val := range attributes {
-		key_func := gr.parent.GetKey(key, KeyForNode)
-		if key_func == nil {
-			// register new Key
-			if key_func, err = gr.parent.RegisterKey(KeyForNode, key, "", reflect.TypeOf(val).Kind(), nil); err != nil {
-				// failed
-				return nil, err
-			}
-		}
-		if err := node.addDataWithKey(key, val, key_func); err != nil {
-			// failed
-			return nil, err
-		}
+	if node.data, err = gr.parent.createDataAttributes(attributes, KeyForNode); err != nil {
+		return nil, err
 	}
+
 	// add node
 	gr.nodes = append(gr.nodes, node)
-
 	return node, nil
-}
-
-// adds data attribute to the node
-func (n *Node) addDataWithKey(name string, value interface{}, key *Key) (err error) {
-	data := &Data{
-		key:key.ID,
-	}
-	// add value
-	data.value, err = stringValueIfSupported(value, key.keyType)
-	if err != nil {
-		return err
-	}
-
-	n.data = append(n.data, data)
-	return nil
 }
 
 // appends given key
@@ -251,6 +233,42 @@ func (gml *GraphML) addKey(key *Key) {
 	gml.keys = append(gml.keys, key)
 	keyNameId := keyIdentifier(key.name, key.target)
 	gml.keysByIdentifier[keyNameId] = key
+}
+
+// Creates data-functions from given attributes and appends definitions of created functions to the provided data list.
+func (gml *GraphML) createDataAttributes(attributes map[string]interface{}, target KeyForElement) (data []*Data, err error) {
+	data = make([]*Data, len(attributes))
+	count := 0
+	for key, val := range attributes {
+		key_func := gml.GetKey(key, target)
+		if key_func == nil {
+			// register new Key
+			if key_func, err = gml.RegisterKey(target, key, "", reflect.TypeOf(val).Kind(), nil); err != nil {
+				// failed
+				return nil, err
+			}
+		}
+		if d, err := createDataWithKey(val, key_func); err != nil {
+			// failed
+			return nil, err
+		} else {
+			data[count] = d
+		}
+		count++
+	}
+	return data, nil
+}
+
+// Creates data object with specified name, value and for provided Key
+func createDataWithKey(value interface{}, key *Key) (data *Data, err error) {
+	data = &Data{
+		key:key.ID,
+	}
+	// add value
+	if data.value, err = stringValueIfSupported(value, key.keyType); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // returns standard key identifier based on provided name and target
