@@ -79,6 +79,9 @@ func TestGraphML_Decode(t *testing.T) {
 	if gml.Graphs[0].edgesDirection != EdgeDirectionDirected {
 		t.Error("gml.Graphs[0].edgesDirection != EdgeDirectionDirected")
 	}
+	if len(gml.Graphs[0].edgesMap) != 1 {
+		t.Error("len(gml.Graphs[0].edgesMap) != 1")
+	}
 	// check attributes
 	checkAttributes(attributes, gml.Graphs[0].Data, KeyForGraph, gml, t)
 
@@ -227,6 +230,54 @@ func TestGraphML_AddGraph(t *testing.T) {
 	graph, err = gml.AddGraph(description, EdgeDirectionDefault, nil)
 	if err == nil {
 		t.Error("error must be raised when default edge direction not provided")
+	}
+}
+
+func TestGraph_GetEdge(t *testing.T) {
+	description := "test graph"
+	gml := NewGraphML("")
+
+	graph, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if graph == nil {
+		t.Error("gr == nil")
+		return
+	}
+
+	// add nodes
+	description = "test node #1"
+	n1, err := graph.AddNode(nil, description)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	description = "test node #2"
+	n2, err := graph.AddNode(nil, description)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	// add edge
+	description = "test edge"
+	_, err = graph.AddEdge(n1, n2, nil, EdgeDirectionDefault, description)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// check existing edge
+	edge := graph.GetEdge(n1.ID, n2.ID)
+	if edge == nil {
+		t.Error("edge == nil")
+	}
+
+	// check non-existing edge
+	edge = graph.GetEdge("n10", "n11")
+	if edge != nil {
+		t.Error("non existing edge found")
 	}
 }
 

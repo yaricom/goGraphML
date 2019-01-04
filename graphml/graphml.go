@@ -196,6 +196,11 @@ func (gml *GraphML) Decode(r io.Reader) error {
 		} else if gr.EdgeDefault == "undirected" {
 			gr.edgesDirection = EdgeDirectionUndirected
 		}
+		// populate edges map
+		gr.edgesMap = make(map[string]*Edge)
+		for _, e := range gr.Edges {
+			gr.edgesMap[edgeIdentifier(e.Source, e.Target)] = e
+		}
 	}
 
 	return err
