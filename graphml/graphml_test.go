@@ -66,10 +66,15 @@ func TestGraphML_Encode(t *testing.T) {
 
 	// encode
 	out_buf := bytes.NewBufferString("")
-	err = gml.Encode(out_buf, true)
+	err = gml.Encode(out_buf, false)
 
 	// check results
-	t.Log(out_buf)
+	res_string := "<graphml><desc>TestGraphML_Encode</desc><key id=\"d0\" for=\"all\" attr.name=\"double\" attr.type=\"double\"><desc>common double data-function</desc><default>10.2</default></key><key id=\"d1\" for=\"graph\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d2\" for=\"graph\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d3\" for=\"graph\" attr.name=\"string\" attr.type=\"string\"></key><key id=\"d4\" for=\"node\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d5\" for=\"node\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d6\" for=\"node\" attr.name=\"string\" attr.type=\"string\"></key><key id=\"d7\" for=\"edge\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d8\" for=\"edge\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d9\" for=\"edge\" attr.name=\"string\" attr.type=\"string\"></key><graph id=\"g0\" edgedefault=\"directed\"><desc>test graph</desc><node id=\"n0\"><desc>test node #1</desc><data key=\"d0\">10.2</data><data key=\"d4\">false</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><node id=\"n1\"><desc>test node #2</desc><data key=\"d0\">10.2</data><data key=\"d4\">false</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><edge id=\"e0\" source=\"n0\" target=\"n1\"><desc>test edge</desc><data key=\"d0\">10.2</data><data key=\"d7\">false</data><data key=\"d8\">120</data><data key=\"d9\">string data</data></edge><data key=\"d0\">10.2</data><data key=\"d1\">false</data><data key=\"d2\">120</data><data key=\"d3\">string data</data></graph></graphml>"
+	if out_buf.Len()!= len(res_string) {
+		t.Error("out_buf.String() != res_string")
+		t.Log(out_buf.String())
+		t.Log(res_string)
+	}
 }
 
 func TestGraphML_AddGraph(t *testing.T) {
