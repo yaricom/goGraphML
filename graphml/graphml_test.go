@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"fmt"
 	"bytes"
+	"os"
 )
 
 func TestNewGraphML(t *testing.T) {
@@ -18,6 +19,110 @@ func TestNewGraphML(t *testing.T) {
 	}
 	if gml.Description != description {
 		t.Error("gml.desc != description", gml.Description)
+	}
+}
+
+func TestNewGraphMLWithAttributes(t *testing.T) {
+	description := "test"
+
+	attributes := make(map[string]interface{})
+	attributes["double"] = 10.2
+	attributes["bool"] = false
+	attributes["integer"] = 120
+	attributes["string"] = "string data"
+
+	gml, err := NewGraphMLWithAttributes(description, attributes)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if gml.Description != description {
+		t.Error("gml.desc != description", gml.Description)
+	}
+	// check attributes
+	checkAttributes(attributes, gml.Data, KeyForGraphML, gml, t)
+}
+
+func TestGraphML_Decode(t *testing.T) {
+	graph_file, err := os.Open("../data/test_graph.xml")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	// decode
+	gml := NewGraphML("")
+	err = gml.Decode(graph_file)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// test results
+	attributes := make(map[string]interface{})
+	attributes["double"] = 10.2
+	attributes["bool"] = false
+	attributes["integer"] = 120
+	attributes["string"] = "string data"
+
+	// check Graph element
+	//
+	if len(gml.Graphs) != 1 {
+		t.Error("len(gml.Graphs) != 1", len(gml.Graphs))
+		return
+	}
+	if gml.Graphs[0].EdgeDefault != "directed" {
+		t.Error("gml.Graphs[0].EdgeDefault != \"directed\"")
+	}
+	if gml.Graphs[0].ID != "g0" {
+		t.Error("gml.Graphs[0].ID != \"g0\"")
+	}
+	if gml.Graphs[0].edgesDirection != EdgeDirectionDirected {
+		t.Error("gml.Graphs[0].edgesDirection != EdgeDirectionDirected")
+	}
+	// check attributes
+	checkAttributes(attributes, gml.Graphs[0].Data, KeyForGraph, gml, t)
+
+	// check Node elements
+	//
+	if len(gml.Graphs[0].Nodes) != 2 {
+		t.Error("len(gml.Graphs[0].Nodes) != 2", len(gml.Graphs[0].Nodes))
+		return
+	}
+	for i, n := range gml.Graphs[0].Nodes {
+		id := fmt.Sprintf("n%d", i)
+		if n.ID != id {
+			t.Error("n.ID != id", n.ID, id)
+		}
+		descr := fmt.Sprintf("test node #%d", i + 1)
+		if n.Description != descr {
+			t.Error("n.Description != descr:", n.Description, descr)
+		}
+		// check attributes
+		checkAttributes(attributes, n.Data, KeyForNode, gml, t)
+	}
+
+	// check Edge elements
+	//
+	if len(gml.Graphs[0].Edges) != 1 {
+		t.Error("len(gml.Graphs[0].Edges) != 1", len(gml.Graphs[0].Edges))
+		return
+	}
+	for i, e := range gml.Graphs[0].Edges {
+		id := fmt.Sprintf("e%d", i)
+		if e.ID != id {
+			t.Error("e.ID != id")
+		}
+		if e.Source != gml.Graphs[0].Nodes[0].ID {
+			t.Error("e.Source != gml.Graphs[0].Nodes[0].ID")
+		}
+		if e.Target != gml.Graphs[0].Nodes[1].ID {
+			t.Error("e.Target != gml.Graphs[0].Nodes[1].ID")
+		}
+		if e.Description != "test edge" {
+			t.Error("e.Description != \"test edge\"", e.Description)
+		}
+		// check attributes
+		checkAttributes(attributes, e.Data, KeyForEdge, gml, t)
 	}
 }
 
@@ -69,8 +174,8 @@ func TestGraphML_Encode(t *testing.T) {
 	err = gml.Encode(out_buf, false)
 
 	// check results
-	res_string := "<graphml><desc>TestGraphML_Encode</desc><key id=\"d0\" for=\"all\" attr.name=\"double\" attr.type=\"double\"><desc>common double data-function</desc><default>10.2</default></key><key id=\"d1\" for=\"graph\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d2\" for=\"graph\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d3\" for=\"graph\" attr.name=\"string\" attr.type=\"string\"></key><key id=\"d4\" for=\"node\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d5\" for=\"node\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d6\" for=\"node\" attr.name=\"string\" attr.type=\"string\"></key><key id=\"d7\" for=\"edge\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d8\" for=\"edge\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d9\" for=\"edge\" attr.name=\"string\" attr.type=\"string\"></key><graph id=\"g0\" edgedefault=\"directed\"><desc>test graph</desc><node id=\"n0\"><desc>test node #1</desc><data key=\"d0\">10.2</data><data key=\"d4\">false</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><node id=\"n1\"><desc>test node #2</desc><data key=\"d0\">10.2</data><data key=\"d4\">false</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><edge id=\"e0\" source=\"n0\" target=\"n1\"><desc>test edge</desc><data key=\"d0\">10.2</data><data key=\"d7\">false</data><data key=\"d8\">120</data><data key=\"d9\">string data</data></edge><data key=\"d0\">10.2</data><data key=\"d1\">false</data><data key=\"d2\">120</data><data key=\"d3\">string data</data></graph></graphml>"
-	if out_buf.Len()!= len(res_string) {
+	res_string := "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\"><desc>TestGraphML_Encode</desc><key id=\"d0\" for=\"all\" attr.name=\"double\" attr.type=\"double\"><desc>common double data-function</desc><default>10.2</default></key><key id=\"d1\" for=\"graph\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d2\" for=\"graph\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d3\" for=\"graph\" attr.name=\"string\" attr.type=\"string\"></key><key id=\"d4\" for=\"node\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d5\" for=\"node\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d6\" for=\"node\" attr.name=\"string\" attr.type=\"string\"></key><key id=\"d7\" for=\"edge\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d8\" for=\"edge\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d9\" for=\"edge\" attr.name=\"string\" attr.type=\"string\"></key><graph id=\"g0\" edgedefault=\"directed\"><desc>test graph</desc><node id=\"n0\"><desc>test node #1</desc><data key=\"d0\">10.2</data><data key=\"d4\">false</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><node id=\"n1\"><desc>test node #2</desc><data key=\"d0\">10.2</data><data key=\"d4\">false</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><edge id=\"e0\" source=\"n0\" target=\"n1\"><desc>test edge</desc><data key=\"d0\">10.2</data><data key=\"d7\">false</data><data key=\"d8\">120</data><data key=\"d9\">string data</data></edge><data key=\"d0\">10.2</data><data key=\"d1\">false</data><data key=\"d2\">120</data><data key=\"d3\">string data</data></graph></graphml>"
+	if out_buf.Len() != len(res_string) {
 		t.Error("out_buf.String() != res_string")
 		t.Log(out_buf.String())
 		t.Log(res_string)

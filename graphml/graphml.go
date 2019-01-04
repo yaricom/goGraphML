@@ -35,21 +35,24 @@ const (
 // The root element
 type GraphML struct {
 	// The name of root element
-	XMLName          xml.Name      `xml:"graphml"`
+	XMLName            xml.Name      `xml:"graphml"`
 	// The name space definitions
-	xmlns            string        `xml:"xmlns,attr"`
+	XmlNS              string        `xml:"xmlns,attr"`
+	// The XML schema definition
+	XmlNS_XSI          string        `xml:"xmlns:xsi,attr"`
+	XSI_schemaLocation string        `xml:"xsi:schemaLocation,attr"`
 
 	// Provides human readable description
-	Description      string        `xml:"desc,omitempty"`
+	Description        string        `xml:"desc,omitempty"`
 	// The custom keys describing data-functions used in this or other elements
-	Keys             []*Key         `xml:"key,omitempty"`
+	Keys               []*Key         `xml:"key,omitempty"`
 	// The data associated with root element
-	Data             []*Data        `xml:"data,omitempty"`
+	Data               []*Data        `xml:"data,omitempty"`
 	// The graph objects encapsulated
-	Graphs           []*Graph       `xml:"graph,omitempty"`
+	Graphs             []*Graph       `xml:"graph,omitempty"`
 
 	// The map to look for keys by their standard identifiers (see keyIdentifier(name string, target KeyForElement))
-	keysByIdentifier map[string]*Key
+	keysByIdentifier   map[string]*Key
 }
 
 // Description: In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint
@@ -142,10 +145,22 @@ func NewGraphML(description string) *GraphML {
 		Keys:make([]*Key, 0),
 		Data:make([]*Data, 0),
 		Graphs:make([]*Graph, 0),
-		xmlns:"http://graphml.graphdrawing.org/xmlns",
+		XmlNS:"http://graphml.graphdrawing.org/xmlns",
+		XmlNS_XSI:"http://www.w3.org/2001/XMLSchema-instance",
+		XSI_schemaLocation:"http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd",
 		keysByIdentifier:make(map[string]*Key),
 	}
 	return &gml
+}
+
+// Creates new GraphML instance with given attributes
+func NewGraphMLWithAttributes(description string, attributes map[string]interface{}) (gml *GraphML, err error) {
+	gml = NewGraphML(description)
+	// add attributes
+	if gml.Data, err = gml.createDataAttributes(attributes, KeyForGraphML); err != nil {
+		return nil, err
+	}
+	return gml, nil
 }
 
 // Encodes GraphML into provided Writer. If withIndent set then each element begins on a new indented line.
@@ -158,6 +173,31 @@ func (gml *GraphML) Encode(w io.Writer, withIndent bool) error {
 	if err == nil {
 		err = enc.Flush()
 	}
+	return err
+}
+
+// Decodes GraphML from provided Reader
+func (gml *GraphML) Decode(r io.Reader) error {
+	dec := xml.NewDecoder(r)
+	err := dec.Decode(gml)
+	if err != nil {
+		return err
+	}
+
+	// populate auxiliary data structure
+	for _, key := range gml.Keys {
+		gml.keysByIdentifier[keyIdentifier(key.Name, key.Target)] = key
+	}
+
+	for _, gr := range gml.Graphs {
+		gr.parent = gml
+		if gr.EdgeDefault == "directed" {
+			gr.edgesDirection = EdgeDirectionDirected
+		} else if gr.EdgeDefault == "undirected" {
+			gr.edgesDirection = EdgeDirectionUndirected
+		}
+	}
+
 	return err
 }
 
@@ -341,7 +381,7 @@ func createDataWithKey(value interface{}, key *Key) (data *Data, err error) {
 		data.Value = key.DefaultValue
 	} else {
 		// raise error
-		return nil, errors.New(fmt.Sprintf("empty attribute without default value: %s", key.Name) )
+		return nil, errors.New(fmt.Sprintf("empty attribute without default value: %s", key.Name))
 	}
 	return data, nil
 }
