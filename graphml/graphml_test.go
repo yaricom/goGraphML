@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"fmt"
 	"bytes"
-	"encoding/xml"
 )
 
 func TestNewGraphML(t *testing.T) {
@@ -27,8 +26,14 @@ func TestGraphML_Encode(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("TestGraphML_Encode")
 
+	// register common data-function for all elements
+	if _, err := gml.RegisterKey(KeyForAll, "double", "common double data-function", reflect.Float64, 10.2); err != nil {
+		t.Error(err)
+		return
+	}
+
 	attributes := make(map[string]interface{})
-	attributes["double"] = 100.1
+	attributes["double"] = NotAValue
 	attributes["bool"] = false
 	attributes["integer"] = 120
 	attributes["string"] = "string data"
@@ -61,17 +66,10 @@ func TestGraphML_Encode(t *testing.T) {
 
 	// encode
 	out_buf := bytes.NewBufferString("")
-	err = gml.Encode(out_buf)
+	err = gml.Encode(out_buf, true)
 
 	// check results
 	t.Log(out_buf)
-
-	bytes, err := xml.Marshal(gml)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t.Log(string(bytes))
 }
 
 func TestGraphML_AddGraph(t *testing.T) {
@@ -97,28 +95,140 @@ func TestGraphML_AddGraph(t *testing.T) {
 	if graph.Description != description {
 		t.Error("gr.Description != description", graph.Description)
 	}
-	if graph.edgeDefault != "directed" {
-		t.Error("gr.edgeDefault != directed", graph.edgeDefault)
+	if graph.EdgeDefault != "directed" {
+		t.Error("gr.edgeDefault != directed", graph.EdgeDefault)
 	}
-	if len(gml.graphs) != 1 {
-		t.Error("len(gml.graphs) != 1", len(gml.graphs))
+	if len(gml.Graphs) != 1 {
+		t.Error("len(gml.graphs) != 1", len(gml.Graphs))
 	}
 
 	// check attributes processing
-	if len(graph.parent.keys) != 4 {
-		t.Error("len(gr.parent.keys) != 4", len(graph.parent.keys))
+	if len(graph.parent.Keys) != 4 {
+		t.Error("len(gr.parent.keys) != 4", len(graph.parent.Keys))
 	}
-	if len(graph.data) != 4 {
-		t.Error("len(node.data) != 4", len(graph.data))
+	if len(graph.Data) != 4 {
+		t.Error("len(node.data) != 4", len(graph.Data))
 	}
 
 	// check attributes
-	checkAttributes(attributes, graph.data, KeyForGraph, graph.parent, t)
+	checkAttributes(attributes, graph.Data, KeyForGraph, graph.parent, t)
 
 	// test error
 	graph, err = gml.AddGraph(description, EdgeDirectionDefault, nil)
 	if err == nil {
 		t.Error("error must be raised when default edge direction not provided")
+	}
+}
+
+// tests if default value of common key will be used for empty attributes
+func TestGraphML_RegisterKeyDefaultValue(t *testing.T) {
+	description := "graphml"
+	gml := NewGraphML(description)
+
+	commonKeyName := "weight"
+	keyDescr := "the weight function"
+	keyDefault := 100.2
+	c_key, err := gml.RegisterKey(KeyForAll, commonKeyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// register graph and test number of keys
+	attributes := make(map[string]interface{})
+	attributes[commonKeyName] = NotAValue // empty attribute - default value will be used
+	attributes["bool"] = false
+	attributes["integer"] = 120
+	attributes["string"] = "string data"
+
+	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if graph == nil {
+		t.Error("gr == nil")
+		return
+	}
+
+	// check attributes processing
+	if len(graph.parent.Keys) != 4 {
+		// it is expected tha GraphML has 4 keys: one common and three specific to the Graph element
+		t.Error("len(gr.parent.keys) != 4", len(graph.parent.Keys))
+	}
+	if len(graph.Data) != 4 {
+		// it is expected that Graph element has 4 data elements
+		t.Error("len(node.data) != 4", len(graph.Data))
+	}
+
+	// check if default value of common key was used
+	for _, d := range graph.Data {
+		if d.ID == c_key.ID && d.Value != c_key.DefaultValue {
+			t.Error("d.Value != c_key.DefaultValue", d.Value, c_key.DefaultValue)
+		}
+	}
+
+	// check attribute without value an without default value
+	commonKeyName2 := "height"
+	_, err = gml.RegisterKey(KeyForAll, commonKeyName2, keyDescr, reflect.TypeOf(keyDefault).Kind(), nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// add node with empty attribute which has no default value
+	attributes[commonKeyName2] = NotAValue
+	n, err := graph.AddNode(attributes, "test node with empty attribute without default value")
+	// no node should be created
+	if n != nil {
+		t.Error("node should not be added due to attribute error")
+	}
+	// error must be raised
+	if err == nil {
+		t.Error("Error must be raised for empty attribute and no default value")
+		return
+	}
+
+}
+
+func TestGraphML_RegisterKeyForAll(t *testing.T) {
+	description := "graphml"
+	gml := NewGraphML(description)
+
+	commonKeyName := "weight"
+	keyDescr := "the weight function"
+	keyDefault := 100.0
+	_, err := gml.RegisterKey(KeyForAll, commonKeyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// register graph and test number of keys
+	attributes := make(map[string]interface{})
+	attributes[commonKeyName] = 100.1
+	attributes["bool"] = false
+	attributes["integer"] = 120
+	attributes["string"] = "string data"
+
+	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if graph == nil {
+		t.Error("gr == nil")
+		return
+	}
+
+	// check attributes processing
+	if len(graph.parent.Keys) != 4 {
+		// it is expected tha GraphML has 4 keys: one common and three specific to the Graph element
+		t.Error("len(gr.parent.keys) != 4", len(graph.parent.Keys))
+	}
+	if len(graph.Data) != 4 {
+		// it is expected that Graph element has 4 data elements
+		t.Error("len(node.data) != 4", len(graph.Data))
 	}
 }
 
@@ -134,30 +244,30 @@ func TestGraphML_RegisterKey(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if len(gml.keys) != 1 {
-		t.Error("len(gml.keys) != 1", len(gml.keys))
+	if len(gml.Keys) != 1 {
+		t.Error("len(gml.keys) != 1", len(gml.Keys))
 		return
 	}
 
-	if gml.keys[0].name != keyName {
-		t.Error("gml.keys[0].name != keyName", gml.keys[0].name)
+	if gml.Keys[0].Name != keyName {
+		t.Error("gml.keys[0].name != keyName", gml.Keys[0].Name)
 	}
-	if gml.keys[0].Description != keyDescr {
-		t.Error("gml.keys[0].Description != keyDescr", gml.keys[0].Description)
+	if gml.Keys[0].Description != keyDescr {
+		t.Error("gml.keys[0].Description != keyDescr", gml.Keys[0].Description)
 	}
-	if gml.keys[0].keyType != "double" {
-		t.Error("gml.keys[0].keyType != double", gml.keys[0].keyType)
+	if gml.Keys[0].KeyType != "double" {
+		t.Error("gml.keys[0].keyType != double", gml.Keys[0].KeyType)
 	}
-	if val, err := strconv.ParseFloat(gml.keys[0].defaultValue, 64); err != nil {
+	if val, err := strconv.ParseFloat(gml.Keys[0].DefaultValue, 64); err != nil {
 		t.Error(err)
 	} else if keyDefault != val {
 		t.Error("keyDefault != val", keyDefault, val)
 	}
-	if gml.keys[0].target != KeyForNode {
-		t.Error("gml.keys[0].keyFor != KeyForNode", gml.keys[0].target)
+	if gml.Keys[0].Target != KeyForNode {
+		t.Error("gml.keys[0].keyFor != KeyForNode", gml.Keys[0].Target)
 	}
-	if gml.keys[0].ID != "d0" {
-		t.Error("gml.keys[0].ID != d0", gml.keys[0].ID)
+	if gml.Keys[0].ID != "d0" {
+		t.Error("gml.keys[0].ID != d0", gml.Keys[0].ID)
 	}
 
 	// register key with the same standard identifier and check that error raised
@@ -173,12 +283,12 @@ func TestGraphML_RegisterKey(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if len(gml.keys) != 2 {
-		t.Error("len(gml.keys) != 2", len(gml.keys))
+	if len(gml.Keys) != 2 {
+		t.Error("len(gml.keys) != 2", len(gml.Keys))
 		return
 	}
-	if gml.keys[1].ID != "d1" {
-		t.Error("gml.keys[1].ID != d1", gml.keys[1].ID)
+	if gml.Keys[1].ID != "d1" {
+		t.Error("gml.keys[1].ID != d1", gml.Keys[1].ID)
 	}
 }
 
@@ -206,18 +316,18 @@ func TestGraph_AddNode(t *testing.T) {
 	}
 
 	// test results
-	if len(gr.nodes) != 1 {
-		t.Error("len(gr.nodes) != 1", len(gr.nodes))
+	if len(gr.Nodes) != 1 {
+		t.Error("len(gr.nodes) != 1", len(gr.Nodes))
 	}
-	if len(gr.parent.keys) != 4 {
-		t.Error("len(gr.parent.keys) != 4", len(gr.parent.keys))
+	if len(gr.parent.Keys) != 4 {
+		t.Error("len(gr.parent.keys) != 4", len(gr.parent.Keys))
 	}
-	if len(node.data) != 4 {
-		t.Error("len(node.data) != 4", len(node.data))
+	if len(node.Data) != 4 {
+		t.Error("len(node.data) != 4", len(node.Data))
 	}
 
 	// check attributes
-	checkAttributes(attributes, node.data, KeyForNode, gr.parent, t)
+	checkAttributes(attributes, node.Data, KeyForNode, gr.parent, t)
 }
 
 func TestGraph_AddEdge(t *testing.T) {
@@ -254,8 +364,8 @@ func TestGraph_AddEdge(t *testing.T) {
 	}
 
 	// test results
-	if len(gr.edges) != 1 {
-		t.Error("len(gr.edges) != 1", len(gr.edges))
+	if len(gr.Edges) != 1 {
+		t.Error("len(gr.edges) != 1", len(gr.Edges))
 	}
 	if len(gr.edgesMap) != 1 {
 		t.Error("len(gr.edgesMap) != 1", len(gr.edgesMap))
@@ -263,21 +373,21 @@ func TestGraph_AddEdge(t *testing.T) {
 	if edge.Description != description {
 		t.Error("edge.Description != description", edge.Description)
 	}
-	if edge.source != n1.ID {
-		t.Error("edge.source != n1.ID ", edge.source, n1.ID)
+	if edge.Source != n1.ID {
+		t.Error("edge.source != n1.ID ", edge.Source, n1.ID)
 	}
-	if edge.target != n2.ID {
-		t.Error("edge.target != n2.ID", edge.target, n2.ID)
+	if edge.Target != n2.ID {
+		t.Error("edge.target != n2.ID", edge.Target, n2.ID)
 	}
-	if len(edge.directed) != 0 {
-		t.Error("len(edge.directed) != 0", len(edge.directed))
+	if len(edge.Directed) != 0 {
+		t.Error("len(edge.directed) != 0", len(edge.Directed))
 	}
 	if _, ok := gr.edgesMap[edgeIdentifier(n1.ID, n2.ID)]; !ok {
 		t.Error("edge not found in edges map")
 	}
 
 	// check attributes
-	checkAttributes(attributes, edge.data, KeyForEdge, gr.parent, t)
+	checkAttributes(attributes, edge.Data, KeyForEdge, gr.parent, t)
 
 	// check error by adding the same node
 	edge, err = gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
@@ -304,9 +414,9 @@ func checkAttributes(attributes map[string]interface{}, data_holders []*Data, ta
 		} else {
 			// check if attribute data value was saved
 			for i, data := range data_holders {
-				if data.key == key.ID {
+				if data.Key == key.ID {
 					str_val := fmt.Sprint(val)
-					if data.value != str_val {
+					if data.Value != str_val {
 						t.Error("data.value != str_val at:", i)
 					}
 					// increment counter to count this attribute
