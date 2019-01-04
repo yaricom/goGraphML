@@ -335,6 +335,15 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 	return edge, nil
 }
 
+// method to test if edge exists between given nodes. If edge exists it will be returned, otherwise nil returned
+func (gr *Graph) GetEdge(sourceId, targetId string) *Edge {
+	edge_identification := edgeIdentifier(sourceId, targetId)
+	if edge, ok := gr.edgesMap[edge_identification]; ok {
+		return edge
+	}
+	return nil
+}
+
 // appends given key
 func (gml *GraphML) addKey(key *Key) {
 	gml.Keys = append(gml.Keys, key)
