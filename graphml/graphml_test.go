@@ -491,6 +491,45 @@ func TestGraph_AddNode(t *testing.T) {
 	checkAttributes(attributes, node.Data, KeyForNode, gr.parent, t)
 }
 
+func TestNode_GetAttributes(t *testing.T) {
+	description := "test graph"
+	gml := NewGraphML("")
+	gr, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// add node
+	attributes := make(map[string]interface{})
+	attributes["double"] = 100.1
+	attributes["bool"] = false
+	attributes["integer"] = 120
+	attributes["string"] = "string data"
+
+	description = "test node"
+	node, err := gr.AddNode(attributes, description)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// get attributes and test
+	n_attr, err := node.GetAttributes()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if len(n_attr) != len(attributes) {
+		t.Error("len(n_attr) != len(attributes)", len(n_attr), len(attributes))
+	}
+	for k, v := range n_attr {
+		if v != attributes[k] {
+			t.Error("v != attributes[k] for:", k)
+		}
+	}
+}
+
 func TestGraph_AddEdge(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
@@ -562,6 +601,58 @@ func TestGraph_AddEdge(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 		return
+	}
+}
+
+func TestEdge_GetAttributes(t *testing.T) {
+	description := "test graph"
+	gml := NewGraphML("")
+	gr, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	// Add nodes
+	var n1, n2 *Node
+	if n1, err = gr.AddNode(nil, "#1"); err != nil {
+		t.Error(err)
+		return
+	}
+	if n2, err = gr.AddNode(nil, "#2"); err != nil {
+		t.Error(err)
+		return
+	}
+
+	// Add graph
+	attributes := make(map[string]interface{})
+	attributes["double"] = 100.1
+	attributes["bool"] = false
+	attributes["integer"] = 120
+	attributes["string"] = "string data"
+
+	description = "test edge"
+	edge, err := gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// get attributes and check results
+	e_attr, err := edge.GetAttributes()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if e_attr == nil {
+		t.Error("e_attr == nil")
+	}
+	if len(e_attr) != len(attributes) {
+		t.Error("len(n_attr) != len(attributes)", len(e_attr), len(attributes))
+	}
+	for k, v := range e_attr {
+		if v != attributes[k] {
+			t.Error("v != attributes[k] for:", k)
+		}
 	}
 }
 

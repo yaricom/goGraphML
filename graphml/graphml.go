@@ -7,6 +7,7 @@ import (
 	"errors"
 	"reflect"
 	"io"
+	"strconv"
 )
 
 // The Not value of data attribute to substitute with default one if present
@@ -53,6 +54,8 @@ type GraphML struct {
 
 	// The map to look for keys by their standard identifiers (see keyIdentifier(name string, target KeyForElement))
 	keysByIdentifier   map[string]*Key
+	// The map to look for keys by their IDs. Useful for fast reverse mapping of Data -> Key -> Attribute Name/Type
+	keysById           map[string]*Key
 }
 
 // Description: In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint
@@ -119,6 +122,9 @@ type Node struct {
 	Description string        `xml:"desc,omitempty"`
 	// The data associated with this node
 	Data        []*Data        `xml:"data,omitempty"`
+
+	// The reference to the parent graph for reverse mapping
+	graph       *Graph
 }
 
 // Describes an edge in the <graph> which contains this <edge>. Occurrence: <graph>.
@@ -136,6 +142,9 @@ type Edge struct {
 	Description string           `xml:"desc,omitempty"`
 	// The data associated with this edge
 	Data        []*Data          `xml:"data,omitempty"`
+
+	// The reference to the parent graph for reverse mapping
+	graph       *Graph
 }
 
 // Creates new GraphML instance
@@ -149,6 +158,7 @@ func NewGraphML(description string) *GraphML {
 		XmlNS_XSI:"http://www.w3.org/2001/XMLSchema-instance",
 		XSI_schemaLocation:"http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd",
 		keysByIdentifier:make(map[string]*Key),
+		keysById:make(map[string]*Key),
 	}
 	return &gml
 }
@@ -187,6 +197,7 @@ func (gml *GraphML) Decode(r io.Reader) error {
 	// populate auxiliary data structure
 	for _, key := range gml.Keys {
 		gml.keysByIdentifier[keyIdentifier(key.Name, key.Target)] = key
+		gml.keysById[key.ID] = key
 	}
 
 	for _, gr := range gml.Graphs {
@@ -296,6 +307,7 @@ func (gr *Graph) AddNode(attributes map[string]interface{}, description string) 
 	}
 
 	// add node
+	node.graph = gr
 	gr.Nodes = append(gr.Nodes, node)
 	return node, nil
 }
@@ -334,6 +346,7 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 	}
 
 	// add edge
+	edge.graph = gr
 	gr.Edges = append(gr.Edges, edge)
 	gr.edgesMap[edgeIdentifier(source.ID, target.ID)] = edge
 
@@ -349,11 +362,37 @@ func (gr *Graph) GetEdge(sourceId, targetId string) *Edge {
 	return nil
 }
 
+// returns data attributes map associated with Node
+func (n *Node) GetAttributes() (map[string]interface{}, error) {
+	return attributesForData(n.Data, n.graph.parent)
+}
+
+// returns data attributes map associated with Edge
+func (e *Edge) GetAttributes() (map[string]interface{}, error) {
+	return attributesForData(e.Data, e.graph.parent)
+}
+
+// builds attributes map for specified data array
+func attributesForData(data []*Data, gml *GraphML) (map[string]interface{}, error) {
+	attr := make(map[string]interface{})
+	for _, d := range data {
+		if key, ok := gml.keysById[d.Key]; !ok {
+			return nil, errors.New(fmt.Sprintf("failed to find attribute name/type by id: %s", d.Key))
+		} else if value, err := valueByType(d.Value, key.KeyType); err != nil {
+			return nil, err
+		} else {
+			attr[key.Name] = value
+		}
+	}
+	return attr, nil
+}
+
 // appends given key
 func (gml *GraphML) addKey(key *Key) {
 	gml.Keys = append(gml.Keys, key)
 	key_identifier := keyIdentifier(key.Name, key.Target)
 	gml.keysByIdentifier[key_identifier] = key
+	gml.keysById[key.ID] = key
 }
 
 // Creates data-functions from given attributes and appends definitions of created functions to the provided data list.
@@ -464,4 +503,32 @@ func stringValueIfSupported(value interface{}, keyType string) (string, error) {
 		}
 	}
 	return fmt.Sprint(value), nil
+}
+
+// Converts provided string value to the specified data type
+func valueByType(val string, keyType string) (interface{}, error) {
+	switch keyType {
+	case "boolean":
+		return strconv.ParseBool(val)
+	case "int", "long":
+		if i_val, err := strconv.ParseInt(val, 10, 64); err != nil {
+			return nil, err
+		} else if keyType == "int" {
+			return int(i_val), nil
+		} else {
+			return i_val, nil
+		}
+	case "float", "double":
+		if f_val, err := strconv.ParseFloat(val, 64); err != nil {
+			return nil, err
+		} else if keyType == "float" {
+			return float32(f_val), nil
+		} else {
+			return f_val, nil
+		}
+	case "string":
+		return val, nil
+	default:
+		return nil, errors.New(fmt.Sprintf("unsupported value type: %s", keyType))
+	}
 }
