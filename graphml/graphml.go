@@ -51,7 +51,7 @@ const (
 type EdgeDirection int
 
 const (
-	// edge direction not specified
+	// edge direction is not specified
 	EdgeDirectionDefault EdgeDirection = iota
 	// edge is directed
 	EdgeDirectionDirected
