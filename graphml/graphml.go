@@ -89,17 +89,17 @@ type GraphML struct {
 // elements (children of <graphml>) and defined by <data> elements. Occurrence: <graphml>.
 type Key struct {
 	// The ID of this key element (in form dX, where X denotes the number of occurrences of the key element before the current one)
-	ID           string        `xml:"id,attr"`
+	ID           string        	`xml:"id,attr"`
 	// The name of element this key is for (graphml|graph|node|edge|hyperedge|port|endpoint|all)
-	Target       KeyForElement `xml:"for,attr"`
+	Target       KeyForElement 	`xml:"for,attr"`
 	// The name of data-function associated with this key
-	Name         string        `xml:"attr.name,attr"`
+	Name         string        	`xml:"attr.name,attr"`
 	// The type of input to the data-function associated with this key. (Allowed values: boolean, int, long, float, double, string)
-	KeyType      string        `xml:"attr.type,attr"`
+	KeyType      GraphMLDataType    `xml:"attr.type,attr"`
 	// Provides human readable description
-	Description  string        `xml:"desc,omitempty"`
+	Description  string        	`xml:"desc,omitempty"`
 	// The default value
-	DefaultValue string        `xml:"default,omitempty"`
+	DefaultValue string        	`xml:"default,omitempty"`
 }
 
 // In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint and to the
@@ -476,8 +476,8 @@ func keyIdentifier(name string, target KeyForElement) string {
 }
 
 // Returns type name for a given kind
-func typeNameForKind(kind reflect.Kind) (string, error) {
-	var keyType string
+func typeNameForKind(kind reflect.Kind) (GraphMLDataType, error) {
+	var keyType GraphMLDataType
 	switch kind {
 	case reflect.Bool:
 		keyType = BooleanType
@@ -498,7 +498,7 @@ func typeNameForKind(kind reflect.Kind) (string, error) {
 }
 
 // Converts provided value to string if it's supported by this keyType
-func stringValueIfSupported(value interface{}, keyType string) (string, error) {
+func stringValueIfSupported(value interface{}, keyType GraphMLDataType) (string, error) {
 	res := "unsupported"
 	// check that key and value types compatible
 	switch keyType {
@@ -532,7 +532,7 @@ func stringValueIfSupported(value interface{}, keyType string) (string, error) {
 }
 
 // Converts provided string value to the specified data type
-func valueByType(val string, keyType string) (interface{}, error) {
+func valueByType(val string, keyType GraphMLDataType) (interface{}, error) {
 	switch keyType {
 	case BooleanType:
 		return strconv.ParseBool(val)
