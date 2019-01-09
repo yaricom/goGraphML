@@ -17,19 +17,45 @@ var NotAValue interface{} = nil
 type KeyForElement string
 
 const (
+	// the data-function is for root GraphML element only
 	KeyForGraphML KeyForElement = "graphml"
+	// the data-function is for Graph element only
 	KeyForGraph KeyForElement = "graph"
+	// the data-function is for Node element only
 	KeyForNode KeyForElement = "node"
+	// the data-function is for Edge element only
 	KeyForEdge KeyForElement = "edge"
+	// the data-function is for all elements
 	KeyForAll KeyForElement = "all"
+)
+
+// The GraphML data types
+type GraphMLDataType string
+
+const (
+	// boolean (reflect.Bool)
+	BooleanType GraphMLDataType = "boolean"
+	// single integer precision (reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint8, reflect.Uint16)
+	IntType GraphMLDataType = "int"
+	// double integer precision (reflect.Int64, reflect.Uint32)
+	LongType GraphMLDataType = "long"
+	// single float precision (reflect.Float32)
+	FloatType GraphMLDataType = "float"
+	// double float precision (reflect.Float64)
+	DoubleType GraphMLDataType = "double"
+	// string value (reflect.String)
+	StringType GraphMLDataType = "string"
 )
 
 // The edge direction
 type EdgeDirection int
 
 const (
+	// edge direction not specified
 	EdgeDirectionDefault EdgeDirection = iota
+	// edge is directed
 	EdgeDirectionDirected
+	// edge is undirected
 	EdgeDirectionUndirected
 )
 
@@ -454,17 +480,17 @@ func typeNameForKind(kind reflect.Kind) (string, error) {
 	var keyType string
 	switch kind {
 	case reflect.Bool:
-		keyType = "boolean"
+		keyType = BooleanType
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint8, reflect.Uint16:
-		keyType = "int"
+		keyType = IntType
 	case reflect.Int64, reflect.Uint32:
-		keyType = "long"
+		keyType = LongType
 	case reflect.Float32:
-		keyType = "float"
+		keyType = FloatType
 	case reflect.Float64:
-		keyType = "double"
+		keyType = DoubleType
 	case reflect.String:
-		keyType = "string"
+		keyType = StringType
 	default:
 		return "unsupported", errors.New("usupported data type for key")
 	}
@@ -476,28 +502,28 @@ func stringValueIfSupported(value interface{}, keyType string) (string, error) {
 	res := "unsupported"
 	// check that key and value types compatible
 	switch keyType {
-	case "boolean":
+	case BooleanType:
 		if reflect.TypeOf(value).Kind() != reflect.Bool {
 			return res, errors.New("default value has wrong data type when boolean expected")
 		}
-	case "int", "long":
+	case IntType, LongType:
 		if defTypeName, err := typeNameForKind(reflect.TypeOf(value).Kind()); err != nil {
 			return res, err
-		} else if !(defTypeName == "int" || defTypeName == "long") {
+		} else if !(defTypeName == IntType || defTypeName == LongType) {
 			return res, errors.New(
 				fmt.Sprintf("default value has wrong data type when int/long expected: %s", defTypeName))
 		}
-	case "float", "double":
+	case FloatType, DoubleType:
 		if defTypeName, err := typeNameForKind(reflect.TypeOf(value).Kind()); err != nil {
 			return res, err
-		} else if !(defTypeName == "float" || defTypeName == "double") {
+		} else if !(defTypeName == FloatType || defTypeName == DoubleType) {
 			return res, errors.New(
 				fmt.Sprintf("default value has wrong data type when float/double expected: %s", defTypeName))
 		}
-	case "string":
+	case StringType:
 		if defTypeName, err := typeNameForKind(reflect.TypeOf(value).Kind()); err != nil {
 			return res, err
-		} else if defTypeName != "string" {
+		} else if defTypeName != StringType {
 			return res, errors.New(
 				fmt.Sprintf("default value has wrong data type when string expected: %s", defTypeName))
 		}
@@ -508,25 +534,25 @@ func stringValueIfSupported(value interface{}, keyType string) (string, error) {
 // Converts provided string value to the specified data type
 func valueByType(val string, keyType string) (interface{}, error) {
 	switch keyType {
-	case "boolean":
+	case BooleanType:
 		return strconv.ParseBool(val)
-	case "int", "long":
+	case IntType, LongType:
 		if i_val, err := strconv.ParseInt(val, 10, 64); err != nil {
 			return nil, err
-		} else if keyType == "int" {
+		} else if keyType == IntType {
 			return int(i_val), nil
 		} else {
 			return i_val, nil
 		}
-	case "float", "double":
+	case FloatType, DoubleType:
 		if f_val, err := strconv.ParseFloat(val, 64); err != nil {
 			return nil, err
-		} else if keyType == "float" {
+		} else if keyType == FloatType {
 			return float32(f_val), nil
 		} else {
 			return f_val, nil
 		}
-	case "string":
+	case StringType:
 		return val, nil
 	default:
 		return nil, errors.New(fmt.Sprintf("unsupported value type: %s", keyType))
