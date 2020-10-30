@@ -1,12 +1,13 @@
-// Package graphml implements marshaling and unmarshaling of GraphML XML documents.
+// Package graphml implements marshaling and unmarshalling of GraphML XML documents.
 package graphml
 
 import (
 	"encoding/xml"
-	"fmt"
 	"errors"
-	"reflect"
+	"fmt"
 	"io"
+	"reflect"
+	"sort"
 	"strconv"
 )
 
@@ -30,21 +31,21 @@ const (
 )
 
 // The GraphML data types
-type GraphMLDataType string
+type DataType string
 
 const (
 	// boolean (reflect.Bool)
-	BooleanType GraphMLDataType = "boolean"
+	BooleanType DataType = "boolean"
 	// single integer precision (reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint8, reflect.Uint16)
-	IntType GraphMLDataType = "int"
+	IntType DataType = "int"
 	// double integer precision (reflect.Int64, reflect.Uint32)
-	LongType GraphMLDataType = "long"
+	LongType DataType = "long"
 	// single float precision (reflect.Float32)
-	FloatType GraphMLDataType = "float"
+	FloatType DataType = "float"
 	// double float precision (reflect.Float64)
-	DoubleType GraphMLDataType = "double"
+	DoubleType DataType = "double"
 	// string value (reflect.String)
-	StringType GraphMLDataType = "string"
+	StringType DataType = "string"
 )
 
 // The edge direction
@@ -59,29 +60,34 @@ const (
 	EdgeDirectionUndirected
 )
 
+const (
+	edgeDirectionDirected   = "directed"
+	edgeDirectionUndirected = "undirected"
+)
+
 // The root element
 type GraphML struct {
 	// The name of root element
-	XMLName            xml.Name      `xml:"graphml"`
+	XMLName xml.Name `xml:"graphml"`
 	// The name space definitions
-	XmlNS              string        `xml:"xmlns,attr"`
+	XmlNS string `xml:"xmlns,attr"`
 	// The XML schema definition
-	XmlNS_XSI          string        `xml:"xmlns:xsi,attr"`
-	XSI_schemaLocation string        `xml:"xsi:schemaLocation,attr"`
+	XmlnsXsi          string `xml:"xmlns:xsi,attr"`
+	XsiSchemaLocation string `xml:"xsi:schemaLocation,attr"`
 
 	// Provides human readable description
-	Description        string        `xml:"desc,omitempty"`
+	Description string `xml:"desc,omitempty"`
 	// The custom keys describing data-functions used in this or other elements
-	Keys               []*Key         `xml:"key,omitempty"`
+	Keys []*Key `xml:"key,omitempty"`
 	// The data associated with root element
-	Data               []*Data        `xml:"data,omitempty"`
+	Data []*Data `xml:"data,omitempty"`
 	// The graph objects encapsulated
-	Graphs             []*Graph       `xml:"graph,omitempty"`
+	Graphs []*Graph `xml:"graph,omitempty"`
 
 	// The map to look for keys by their standard identifiers (see keyIdentifier(name string, target KeyForElement))
-	keysByIdentifier   map[string]*Key
+	keysByIdentifier map[string]*Key
 	// The map to look for keys by their IDs. Useful for fast reverse mapping of Data -> Key -> Attribute Name/Type
-	keysById           map[string]*Key
+	keysById map[string]*Key
 }
 
 // Description: In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint
@@ -89,17 +95,17 @@ type GraphML struct {
 // elements (children of <graphml>) and defined by <data> elements. Occurrence: <graphml>.
 type Key struct {
 	// The ID of this key element (in form dX, where X denotes the number of occurrences of the key element before the current one)
-	ID           string        	`xml:"id,attr"`
+	ID string `xml:"id,attr"`
 	// The name of element this key is for (graphml|graph|node|edge|hyperedge|port|endpoint|all)
-	Target       KeyForElement 	`xml:"for,attr"`
+	Target KeyForElement `xml:"for,attr"`
 	// The name of data-function associated with this key
-	Name         string        	`xml:"attr.name,attr"`
+	Name string `xml:"attr.name,attr"`
 	// The type of input to the data-function associated with this key. (Allowed values: boolean, int, long, float, double, string)
-	KeyType      GraphMLDataType    `xml:"attr.type,attr"`
+	KeyType DataType `xml:"attr.type,attr"`
 	// Provides human readable description
-	Description  string        	`xml:"desc,omitempty"`
+	Description string `xml:"desc,omitempty"`
 	// The default value
-	DefaultValue string        	`xml:"default,omitempty"`
+	DefaultValue string `xml:"default,omitempty"`
 }
 
 // In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint and to the
@@ -108,34 +114,34 @@ type Key struct {
 // <hyperedge>, and <endpoint>.
 type Data struct {
 	// The ID of this data element (in form dX, where X denotes the number of occurrences of the data element before the current one)
-	ID    string              `xml:"id,attr,omitempty"`
+	ID string `xml:"id,attr,omitempty"`
 	// The ID of <key> element for this data element
-	Key   string              `xml:"key,attr"`
+	Key string `xml:"key,attr"`
 
-	// The data value associated with this elment
-	Value string              `xml:",chardata"`
+	// The data value associated with this element
+	Value string `xml:",chardata"`
 }
 
 // Describes one graph in this document. Occurrence: <graphml>, <node>, <edge>, <hyperedge>.
 type Graph struct {
 	// The ID of this graph element (in form gX, where X denotes the number of occurrences of the graph element before the current one)
-	ID             string        `xml:"id,attr"`
+	ID string `xml:"id,attr"`
 	// The default edge direction (directed|undirected)
-	EdgeDefault    string        `xml:"edgedefault,attr"`
+	EdgeDefault string `xml:"edgedefault,attr"`
 
 	// Provides human readable description
-	Description    string        `xml:"desc,omitempty"`
+	Description string `xml:"desc,omitempty"`
 	// The nodes associated with this graph
-	Nodes          []*Node        `xml:"node,omitempty"`
+	Nodes []*Node `xml:"node,omitempty"`
 	// The edges associated with this graph and connecting nodes
-	Edges          []*Edge        `xml:"edge,omitempty"`
+	Edges []*Edge `xml:"edge,omitempty"`
 	// The data associated with this node
-	Data           []*Data        `xml:"data,omitempty"`
+	Data []*Data `xml:"data,omitempty"`
 
 	// The parent GraphML
-	parent         *GraphML
+	parent *GraphML
 	// The map of edges by connected nodes
-	edgesMap       map[string]*Edge
+	edgesMap map[string]*Edge
 	// The default edge direction flag
 	edgesDirection EdgeDirection
 }
@@ -143,48 +149,48 @@ type Graph struct {
 // Describes one node in the <graph> containing this <node>. Occurrence: <graph>.
 type Node struct {
 	// The ID of this node element (in form nX, where X denotes the number of occurrences of the node element before the current one)
-	ID          string        `xml:"id,attr"`
+	ID string `xml:"id,attr"`
 	// Provides human readable description
-	Description string        `xml:"desc,omitempty"`
+	Description string `xml:"desc,omitempty"`
 	// The data associated with this node
-	Data        []*Data        `xml:"data,omitempty"`
+	Data []*Data `xml:"data,omitempty"`
 
 	// The reference to the parent graph for reverse mapping
-	graph       *Graph
+	graph *Graph
 }
 
 // Describes an edge in the <graph> which contains this <edge>. Occurrence: <graph>.
 type Edge struct {
 	// The ID of this edge element (in form eX, where X is the number of edge elements before this one)
-	ID          string           `xml:"id,attr"`
+	ID string `xml:"id,attr"`
 	// The source node ID
-	Source      string           `xml:"source,attr"`
+	Source string `xml:"source,attr"`
 	// The target node ID
-	Target      string           `xml:"target,attr"`
+	Target string `xml:"target,attr"`
 	// The direction type of this edge (true - directed, false - undirected)
-	Directed    string           `xml:"directed,attr,omitempty"`
+	Directed string `xml:"directed,attr,omitempty"`
 
 	// Provides human readable description
-	Description string           `xml:"desc,omitempty"`
+	Description string `xml:"desc,omitempty"`
 	// The data associated with this edge
-	Data        []*Data          `xml:"data,omitempty"`
+	Data []*Data `xml:"data,omitempty"`
 
 	// The reference to the parent graph for reverse mapping
-	graph       *Graph
+	graph *Graph
 }
 
 // Creates new GraphML instance
 func NewGraphML(description string) *GraphML {
 	gml := GraphML{
-		Description:description,
-		Keys:make([]*Key, 0),
-		Data:make([]*Data, 0),
-		Graphs:make([]*Graph, 0),
-		XmlNS:"http://graphml.graphdrawing.org/xmlns",
-		XmlNS_XSI:"http://www.w3.org/2001/XMLSchema-instance",
-		XSI_schemaLocation:"http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd",
-		keysByIdentifier:make(map[string]*Key),
-		keysById:make(map[string]*Key),
+		Description:       description,
+		Keys:              make([]*Key, 0),
+		Data:              make([]*Data, 0),
+		Graphs:            make([]*Graph, 0),
+		XmlNS:             "http://graphml.graphdrawing.org/xmlns",
+		XmlnsXsi:          "http://www.w3.org/2001/XMLSchema-instance",
+		XsiSchemaLocation: "http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd",
+		keysByIdentifier:  make(map[string]*Key),
+		keysById:          make(map[string]*Key),
 	}
 	return &gml
 }
@@ -228,9 +234,9 @@ func (gml *GraphML) Decode(r io.Reader) error {
 
 	for _, gr := range gml.Graphs {
 		gr.parent = gml
-		if gr.EdgeDefault == "directed" {
+		if gr.EdgeDefault == edgeDirectionDirected {
 			gr.edgesDirection = EdgeDirectionDirected
-		} else if gr.EdgeDefault == "undirected" {
+		} else if gr.EdgeDefault == edgeDirectionUndirected {
 			gr.edgesDirection = EdgeDirectionUndirected
 		}
 		// populate edges map
@@ -246,14 +252,14 @@ func (gml *GraphML) Decode(r io.Reader) error {
 // Register data function with GraphML instance
 func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, keyType reflect.Kind, defaultValue interface{}) (key *Key, err error) {
 	if key := gml.GetKey(name, target); key != nil {
-		return nil, errors.New("key with given name already registered")
+		return nil, errors.New(fmt.Sprintf("key with given name already registered: %s", name))
 	}
 	count := len(gml.Keys)
 	key = &Key{
-		ID:fmt.Sprintf("d%d", count),
-		Target:target,
-		Name:name,
-		Description:description,
+		ID:          fmt.Sprintf("d%d", count),
+		Target:      target,
+		Name:        name,
+		Description: description,
 	}
 	// add key type (boolean, int, long, float, double, string)
 	if key.KeyType, err = typeNameForKind(keyType); err != nil {
@@ -289,25 +295,25 @@ func (gml *GraphML) GetKey(name string, target KeyForElement) *Key {
 // Creates new Graph and add it to the root GraphML
 func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attributes map[string]interface{}) (graph *Graph, err error) {
 	count := len(gml.Graphs)
-	var edge_direction string
+	var edgeDirection string
 	switch edgeDefault {
 	case EdgeDirectionDirected:
-		edge_direction = "directed"
+		edgeDirection = edgeDirectionDirected
 	case EdgeDirectionUndirected:
-		edge_direction = "undirected"
+		edgeDirection = edgeDirectionUndirected
 	default:
-		return nil, errors.New("default edge direction must provided")
+		return nil, errors.New("default edge direction must be provided")
 	}
 
 	graph = &Graph{
-		ID:fmt.Sprintf("g%d", count),
-		EdgeDefault:edge_direction,
-		Description:description,
-		Nodes:make([]*Node, 0),
-		Edges:make([]*Edge, 0),
-		parent:gml,
-		edgesMap:make(map[string]*Edge),
-		edgesDirection:edgeDefault,
+		ID:             fmt.Sprintf("g%d", count),
+		EdgeDefault:    edgeDirection,
+		Description:    description,
+		Nodes:          make([]*Node, 0),
+		Edges:          make([]*Edge, 0),
+		parent:         gml,
+		edgesMap:       make(map[string]*Edge),
+		edgesDirection: edgeDefault,
 	}
 	// add attributes
 	if graph.Data, err = gml.createDataAttributes(attributes, KeyForGraph); err != nil {
@@ -323,9 +329,9 @@ func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attr
 func (gr *Graph) AddNode(attributes map[string]interface{}, description string) (node *Node, err error) {
 	count := len(gr.Nodes)
 	node = &Node{
-		ID:fmt.Sprintf("n%d", count),
-		Description:description,
-		Data:make([]*Data, 0),
+		ID:          fmt.Sprintf("n%d", count),
+		Description: description,
+		Data:        make([]*Data, 0),
 	}
 	// add attributes
 	if node.Data, err = gr.parent.createDataAttributes(attributes, KeyForNode); err != nil {
@@ -341,12 +347,12 @@ func (gr *Graph) AddNode(attributes map[string]interface{}, description string) 
 // Adds edge to the graph which connects two its nodes with provided additional attributes and description
 func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}, edgeDirection EdgeDirection, description string) (edge *Edge, err error) {
 	// test if edge already exists
-	edge_identification := edgeIdentifier(source.ID, target.ID)
+	edgeIdentification := edgeIdentifier(source.ID, target.ID)
 	exists := false
-	if _, exists = gr.edgesMap[edge_identification]; !exists && (edgeDirection == EdgeDirectionUndirected || gr.edgesDirection == EdgeDirectionUndirected) {
+	if _, exists = gr.edgesMap[edgeIdentification]; !exists && (edgeDirection == EdgeDirectionUndirected || gr.edgesDirection == EdgeDirectionUndirected) {
 		// check other direction for undirected edge or graph types
-		edge_identification = edgeIdentifier(target.ID, source.ID)
-		_, exists = gr.edgesMap[edge_identification]
+		edgeIdentification = edgeIdentifier(target.ID, source.ID)
+		_, exists = gr.edgesMap[edgeIdentification]
 	}
 	if exists {
 		return nil, errors.New("edge already added to the graph")
@@ -354,10 +360,10 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 
 	count := len(gr.Edges)
 	edge = &Edge{
-		ID:fmt.Sprintf("e%d", count),
-		Source:source.ID,
-		Target:target.ID,
-		Description:description,
+		ID:          fmt.Sprintf("e%d", count),
+		Source:      source.ID,
+		Target:      target.ID,
+		Description: description,
 	}
 	switch edgeDirection {
 	case EdgeDirectionDirected:
@@ -381,8 +387,8 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 
 // method to test if edge exists between given nodes. If edge exists it will be returned, otherwise nil returned
 func (gr *Graph) GetEdge(sourceId, targetId string) *Edge {
-	edge_identification := edgeIdentifier(sourceId, targetId)
-	if edge, ok := gr.edgesMap[edge_identification]; ok {
+	edgeIdentification := edgeIdentifier(sourceId, targetId)
+	if edge, ok := gr.edgesMap[edgeIdentification]; ok {
 		return edge
 	}
 	return nil
@@ -416,25 +422,33 @@ func attributesForData(data []*Data, gml *GraphML) (map[string]interface{}, erro
 // appends given key
 func (gml *GraphML) addKey(key *Key) {
 	gml.Keys = append(gml.Keys, key)
-	key_identifier := keyIdentifier(key.Name, key.Target)
-	gml.keysByIdentifier[key_identifier] = key
+	keyIdentifier := keyIdentifier(key.Name, key.Target)
+	gml.keysByIdentifier[keyIdentifier] = key
 	gml.keysById[key.ID] = key
 }
 
 // Creates data-functions from given attributes and appends definitions of created functions to the provided data list.
 func (gml *GraphML) createDataAttributes(attributes map[string]interface{}, target KeyForElement) (data []*Data, err error) {
+	// make sure that attributes are sorted in predictable order
+	names := make([]string, 0)
+	for key := range attributes {
+		names = append(names, key)
+	}
+	sort.Strings(names)
+	// create data functions
 	data = make([]*Data, len(attributes))
 	count := 0
-	for key, val := range attributes {
-		key_func := gml.GetKey(key, target)
-		if key_func == nil {
+	for _, key := range names {
+		keyFunc := gml.GetKey(key, target)
+		val := attributes[key]
+		if keyFunc == nil {
 			// register new Key
-			if key_func, err = gml.RegisterKey(target, key, "", reflect.TypeOf(val).Kind(), nil); err != nil {
+			if keyFunc, err = gml.RegisterKey(target, key, "", reflect.TypeOf(val).Kind(), nil); err != nil {
 				// failed
 				return nil, err
 			}
 		}
-		if d, err := createDataWithKey(val, key_func); err != nil {
+		if d, err := createDataWithKey(val, keyFunc); err != nil {
 			// failed
 			return nil, err
 		} else {
@@ -448,7 +462,7 @@ func (gml *GraphML) createDataAttributes(attributes map[string]interface{}, targ
 // Creates data object with specified name, value and for provided Key
 func createDataWithKey(value interface{}, key *Key) (data *Data, err error) {
 	data = &Data{
-		Key:key.ID,
+		Key: key.ID,
 	}
 	// add value
 	if value != NotAValue {
@@ -466,8 +480,8 @@ func createDataWithKey(value interface{}, key *Key) (data *Data, err error) {
 }
 
 // returns standard edge identifier based on provided iDs of connected nodes
-func edgeIdentifier(soure, target string) string {
-	return fmt.Sprintf("%s<->%s", soure, target)
+func edgeIdentifier(source, target string) string {
+	return fmt.Sprintf("%s<->%s", source, target)
 }
 
 // returns standard key identifier based on provided name and target
@@ -476,8 +490,8 @@ func keyIdentifier(name string, target KeyForElement) string {
 }
 
 // Returns type name for a given kind
-func typeNameForKind(kind reflect.Kind) (GraphMLDataType, error) {
-	var keyType GraphMLDataType
+func typeNameForKind(kind reflect.Kind) (DataType, error) {
+	var keyType DataType
 	switch kind {
 	case reflect.Bool:
 		keyType = BooleanType
@@ -492,13 +506,13 @@ func typeNameForKind(kind reflect.Kind) (GraphMLDataType, error) {
 	case reflect.String:
 		keyType = StringType
 	default:
-		return "unsupported", errors.New("usupported data type for key")
+		return "unsupported", errors.New("unsupported data type for key")
 	}
 	return keyType, nil
 }
 
 // Converts provided value to string if it's supported by this keyType
-func stringValueIfSupported(value interface{}, keyType GraphMLDataType) (string, error) {
+func stringValueIfSupported(value interface{}, keyType DataType) (string, error) {
 	res := "unsupported"
 	// check that key and value types compatible
 	switch keyType {
@@ -532,25 +546,25 @@ func stringValueIfSupported(value interface{}, keyType GraphMLDataType) (string,
 }
 
 // Converts provided string value to the specified data type
-func valueByType(val string, keyType GraphMLDataType) (interface{}, error) {
+func valueByType(val string, keyType DataType) (interface{}, error) {
 	switch keyType {
 	case BooleanType:
 		return strconv.ParseBool(val)
 	case IntType, LongType:
-		if i_val, err := strconv.ParseInt(val, 10, 64); err != nil {
+		if iVal, err := strconv.ParseInt(val, 10, 64); err != nil {
 			return nil, err
 		} else if keyType == IntType {
-			return int(i_val), nil
+			return int(iVal), nil
 		} else {
-			return i_val, nil
+			return iVal, nil
 		}
 	case FloatType, DoubleType:
-		if f_val, err := strconv.ParseFloat(val, 64); err != nil {
+		if fVal, err := strconv.ParseFloat(val, 64); err != nil {
 			return nil, err
 		} else if keyType == FloatType {
-			return float32(f_val), nil
+			return float32(fVal), nil
 		} else {
-			return f_val, nil
+			return fVal, nil
 		}
 	case StringType:
 		return val, nil
