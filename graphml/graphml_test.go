@@ -1,25 +1,21 @@
 package graphml
 
 import (
-	"testing"
-	"strconv"
-	"reflect"
-	"fmt"
 	"bytes"
+	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
+	"reflect"
+	"strconv"
+	"testing"
 )
 
 func TestNewGraphML(t *testing.T) {
 	description := "test"
 	gml := NewGraphML(description)
-
-	if gml == nil {
-		t.Error("gml == nil ")
-		return
-	}
-	if gml.Description != description {
-		t.Error("gml.desc != description", gml.Description)
-	}
+	require.NotNil(t, gml)
+	assert.Equal(t, description, gml.Description)
 }
 
 func TestNewGraphMLWithAttributes(t *testing.T) {
@@ -32,30 +28,20 @@ func TestNewGraphMLWithAttributes(t *testing.T) {
 	attributes["string"] = "string data"
 
 	gml, err := NewGraphMLWithAttributes(description, attributes)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if gml.Description != description {
-		t.Error("gml.desc != description", gml.Description)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, gml)
+	assert.Equal(t, description, gml.Description)
 	// check attributes
 	checkAttributes(attributes, gml.Data, KeyForGraphML, gml, t)
 }
 
 func TestGraphML_Decode(t *testing.T) {
-	graph_file, err := os.Open("../data/test_graph.xml")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	graphFile, err := os.Open("../data/test_graph.xml")
+	require.NoError(t, err, "failed to open file")
 	// decode
 	gml := NewGraphML("")
-	err = gml.Decode(graph_file)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	err = gml.Decode(graphFile)
+	require.NoError(t, err, "failed to decode")
 
 	// test results
 	attributes := make(map[string]interface{})
@@ -66,64 +52,37 @@ func TestGraphML_Decode(t *testing.T) {
 
 	// check Graph element
 	//
-	if len(gml.Graphs) != 1 {
-		t.Error("len(gml.Graphs) != 1", len(gml.Graphs))
-		return
-	}
-	if gml.Graphs[0].EdgeDefault != "directed" {
-		t.Error("gml.Graphs[0].EdgeDefault != \"directed\"")
-	}
-	if gml.Graphs[0].ID != "g0" {
-		t.Error("gml.Graphs[0].ID != \"g0\"")
-	}
-	if gml.Graphs[0].edgesDirection != EdgeDirectionDirected {
-		t.Error("gml.Graphs[0].edgesDirection != EdgeDirectionDirected")
-	}
-	if len(gml.Graphs[0].edgesMap) != 1 {
-		t.Error("len(gml.Graphs[0].edgesMap) != 1")
-	}
+	require.Len(t, gml.Graphs, 1, "wrong graphs number")
+	graph := gml.Graphs[0]
+	assert.Equal(t, edgeDirectionDirected, graph.EdgeDefault, "wrong edge default")
+	assert.Equal(t, "g0", graph.ID, "wrong graph ID")
+	assert.Equal(t, EdgeDirectionDirected, graph.edgesDirection, "wrong edges direction")
+	assert.Len(t, graph.edgesMap, 1, "wrong size of edges map")
+
 	// check attributes
 	checkAttributes(attributes, gml.Graphs[0].Data, KeyForGraph, gml, t)
 
 	// check Node elements
 	//
-	if len(gml.Graphs[0].Nodes) != 2 {
-		t.Error("len(gml.Graphs[0].Nodes) != 2", len(gml.Graphs[0].Nodes))
-		return
-	}
+	require.Len(t, graph.Nodes, 2, "wrong nodes number")
 	for i, n := range gml.Graphs[0].Nodes {
 		id := fmt.Sprintf("n%d", i)
-		if n.ID != id {
-			t.Error("n.ID != id", n.ID, id)
-		}
-		descr := fmt.Sprintf("test node #%d", i + 1)
-		if n.Description != descr {
-			t.Error("n.Description != descr:", n.Description, descr)
-		}
+		assert.Equal(t, id, n.ID, "wrong node ID at: %d", i)
+		desc := fmt.Sprintf("test node #%d", i+1)
+		assert.Equal(t, desc, n.Description, "wrong node description at: %d", i)
 		// check attributes
 		checkAttributes(attributes, n.Data, KeyForNode, gml, t)
 	}
 
 	// check Edge elements
 	//
-	if len(gml.Graphs[0].Edges) != 1 {
-		t.Error("len(gml.Graphs[0].Edges) != 1", len(gml.Graphs[0].Edges))
-		return
-	}
+	require.Len(t, graph.Edges, 1, "wrong edges number")
 	for i, e := range gml.Graphs[0].Edges {
 		id := fmt.Sprintf("e%d", i)
-		if e.ID != id {
-			t.Error("e.ID != id")
-		}
-		if e.Source != gml.Graphs[0].Nodes[0].ID {
-			t.Error("e.Source != gml.Graphs[0].Nodes[0].ID")
-		}
-		if e.Target != gml.Graphs[0].Nodes[1].ID {
-			t.Error("e.Target != gml.Graphs[0].Nodes[1].ID")
-		}
-		if e.Description != "test edge" {
-			t.Error("e.Description != \"test edge\"", e.Description)
-		}
+		assert.Equal(t, id, e.ID, "wrong edge ID at: %d", i)
+		assert.Equal(t, graph.Nodes[0].ID, e.Source, "wrong edge source: %v", e)
+		assert.Equal(t, graph.Nodes[1].ID, e.Target, "wrong edge target: %v", e)
+		assert.Equal(t, "test edge", e.Description, "wrong edge description: %v", e)
 		// check attributes
 		checkAttributes(attributes, e.Data, KeyForEdge, gml, t)
 	}
@@ -135,54 +94,40 @@ func TestGraphML_Encode(t *testing.T) {
 	gml := NewGraphML("TestGraphML_Encode")
 
 	// register common data-function for all elements
-	if _, err := gml.RegisterKey(KeyForAll, "double", "common double data-function", reflect.Float64, 10.2); err != nil {
-		t.Error(err)
-		return
-	}
+	keyForAllName := "attr_double"
+	_, err := gml.RegisterKey(KeyForAll, keyForAllName, "common double data-function", reflect.Float64, 10.2)
+	require.NoError(t, err, "failed to register key")
 
 	attributes := make(map[string]interface{})
-	attributes["double"] = NotAValue
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes[keyForAllName] = NotAValue
+	attributes["attr_bool"] = false
+	attributes["attr_integer"] = 120
+	attributes["attr_string"] = "string data"
 	// add graph
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add graph")
+
 	// add nodes
 	description = "test node #1"
 	n1, err := graph.AddNode(attributes, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add node: %s", description)
+
 	description = "test node #2"
 	n2, err := graph.AddNode(attributes, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add node: %s", description)
+
 	// add edge
 	description = "test edge"
 	_, err = graph.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add edge: %s", description)
 
 	// encode
-	out_buf := bytes.NewBufferString("")
-	err = gml.Encode(out_buf, false)
+	outBuf := bytes.NewBufferString("")
+	err = gml.Encode(outBuf, false)
 
 	// check results
-	res_string := "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\"><desc>TestGraphML_Encode</desc><key id=\"d0\" for=\"all\" attr.name=\"double\" attr.type=\"double\"><desc>common double data-function</desc><default>10.2</default></key><key id=\"d1\" for=\"graph\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d2\" for=\"graph\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d3\" for=\"graph\" attr.name=\"string\" attr.type=\"string\"></key><key id=\"d4\" for=\"node\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d5\" for=\"node\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d6\" for=\"node\" attr.name=\"string\" attr.type=\"string\"></key><key id=\"d7\" for=\"edge\" attr.name=\"bool\" attr.type=\"boolean\"></key><key id=\"d8\" for=\"edge\" attr.name=\"integer\" attr.type=\"int\"></key><key id=\"d9\" for=\"edge\" attr.name=\"string\" attr.type=\"string\"></key><graph id=\"g0\" edgedefault=\"directed\"><desc>test graph</desc><node id=\"n0\"><desc>test node #1</desc><data key=\"d0\">10.2</data><data key=\"d4\">false</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><node id=\"n1\"><desc>test node #2</desc><data key=\"d0\">10.2</data><data key=\"d4\">false</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><edge id=\"e0\" source=\"n0\" target=\"n1\"><desc>test edge</desc><data key=\"d0\">10.2</data><data key=\"d7\">false</data><data key=\"d8\">120</data><data key=\"d9\">string data</data></edge><data key=\"d0\">10.2</data><data key=\"d1\">false</data><data key=\"d2\">120</data><data key=\"d3\">string data</data></graph></graphml>"
-	if out_buf.Len() != len(res_string) {
-		t.Error("out_buf.String() != res_string")
-		t.Log(out_buf.String())
-		t.Log(res_string)
-	}
+	const resString = "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\"><desc>TestGraphML_Encode</desc><key id=\"d0\" for=\"all\" attr.name=\"attr_double\" attr.type=\"double\"><desc>common double data-function</desc><default>10.2</default></key><key id=\"d1\" for=\"graph\" attr.name=\"attr_bool\" attr.type=\"boolean\"></key><key id=\"d2\" for=\"graph\" attr.name=\"attr_integer\" attr.type=\"int\"></key><key id=\"d3\" for=\"graph\" attr.name=\"attr_string\" attr.type=\"string\"></key><key id=\"d4\" for=\"node\" attr.name=\"attr_bool\" attr.type=\"boolean\"></key><key id=\"d5\" for=\"node\" attr.name=\"attr_integer\" attr.type=\"int\"></key><key id=\"d6\" for=\"node\" attr.name=\"attr_string\" attr.type=\"string\"></key><key id=\"d7\" for=\"edge\" attr.name=\"attr_bool\" attr.type=\"boolean\"></key><key id=\"d8\" for=\"edge\" attr.name=\"attr_integer\" attr.type=\"int\"></key><key id=\"d9\" for=\"edge\" attr.name=\"attr_string\" attr.type=\"string\"></key><graph id=\"g0\" edgedefault=\"directed\"><desc>test graph</desc><node id=\"n0\"><desc>test node #1</desc><data key=\"d4\">false</data><data key=\"d0\">10.2</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><node id=\"n1\"><desc>test node #2</desc><data key=\"d4\">false</data><data key=\"d0\">10.2</data><data key=\"d5\">120</data><data key=\"d6\">string data</data></node><edge id=\"e0\" source=\"n0\" target=\"n1\"><desc>test edge</desc><data key=\"d7\">false</data><data key=\"d0\">10.2</data><data key=\"d8\">120</data><data key=\"d9\">string data</data></edge><data key=\"d1\">false</data><data key=\"d0\">10.2</data><data key=\"d2\">120</data><data key=\"d3\">string data</data></graph></graphml>"
+	assert.Equal(t, resString, outBuf.String())
 }
 
 func TestGraphML_AddGraph(t *testing.T) {
@@ -191,46 +136,29 @@ func TestGraphML_AddGraph(t *testing.T) {
 
 	// test normal creation
 	attributes := make(map[string]interface{})
-	attributes["double"] = 100.1
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes["attr_double"] = 100.1
+	attributes["attr_bool"] = false
+	attributes["attr_integer"] = 120
+	attributes["attr_string"] = "string data"
 
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if graph == nil {
-		t.Error("gr == nil")
-		return
-	}
-	if graph.Description != description {
-		t.Error("gr.Description != description", graph.Description)
-	}
-	if graph.EdgeDefault != "directed" {
-		t.Error("gr.edgeDefault != directed", graph.EdgeDefault)
-	}
-	if len(gml.Graphs) != 1 {
-		t.Error("len(gml.graphs) != 1", len(gml.Graphs))
-	}
+	require.NoError(t, err, "failed to add graph")
+	require.NotNil(t, graph)
+	assert.Equal(t, description, graph.Description, "wrong description")
+	assert.Equal(t, edgeDirectionDirected, graph.EdgeDefault, "wrong default direction")
+	assert.Len(t, gml.Graphs, 1, "wrong graphs number")
 
 	// check attributes processing
-	if len(graph.parent.Keys) != 4 {
-		t.Error("len(gr.parent.keys) != 4", len(graph.parent.Keys))
-	}
-	if len(graph.Data) != 4 {
-		t.Error("len(node.data) != 4", len(graph.Data))
-	}
+	assert.Len(t, graph.parent.Keys, 4, "wrong keys number")
+	assert.Len(t, graph.Data, 4, "wrong root data functions number")
 
 	// check attributes
 	checkAttributes(attributes, graph.Data, KeyForGraph, graph.parent, t)
 
 	// test error
 	graph, err = gml.AddGraph(description, EdgeDirectionDefault, nil)
-	if err == nil {
-		t.Error("error must be raised when default edge direction not provided")
-	}
+	assert.EqualError(t, err, "default edge direction must be provided")
+	assert.Nil(t, graph)
 }
 
 func TestGraph_GetEdge(t *testing.T) {
@@ -238,47 +166,30 @@ func TestGraph_GetEdge(t *testing.T) {
 	gml := NewGraphML("")
 
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if graph == nil {
-		t.Error("gr == nil")
-		return
-	}
+	require.NoError(t, err, "failed to add graph")
+	require.NotNil(t, graph)
 
 	// add nodes
 	description = "test node #1"
 	n1, err := graph.AddNode(nil, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add node: %s", description)
+
 	description = "test node #2"
 	n2, err := graph.AddNode(nil, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add node: %s", description)
+
 	// add edge
 	description = "test edge"
 	_, err = graph.AddEdge(n1, n2, nil, EdgeDirectionDefault, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add edge: %s", description)
 
 	// check existing edge
 	edge := graph.GetEdge(n1.ID, n2.ID)
-	if edge == nil {
-		t.Error("edge == nil")
-	}
+	assert.NotNil(t, edge, "edge is expected")
 
 	// check non-existing edge
 	edge = graph.GetEdge("n10", "n11")
-	if edge != nil {
-		t.Error("non existing edge found")
-	}
+	assert.Nil(t, edge, "edge is not expected")
 }
 
 // tests if default value of common key will be used for empty attributes
@@ -287,69 +198,45 @@ func TestGraphML_RegisterKeyDefaultValue(t *testing.T) {
 	gml := NewGraphML(description)
 
 	commonKeyName := "weight"
-	keyDescr := "the weight function"
+	keyDesc := "the weight function"
 	keyDefault := 100.2
-	c_key, err := gml.RegisterKey(KeyForAll, commonKeyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	commonKey, err := gml.RegisterKey(KeyForAll, commonKeyName, keyDesc, reflect.TypeOf(keyDefault).Kind(), keyDefault)
+	require.NoError(t, err, "failed to register key: %s", commonKeyName)
 
 	// register graph and test number of keys
 	attributes := make(map[string]interface{})
 	attributes[commonKeyName] = NotAValue // empty attribute - default value will be used
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes["attr_bool"] = false
+	attributes["attr_integer"] = 120
+	attributes["attr_string"] = "string data"
 
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if graph == nil {
-		t.Error("gr == nil")
-		return
-	}
+	require.NoError(t, err, "failed to add graph")
+	require.NotNil(t, graph)
 
 	// check attributes processing
-	if len(graph.parent.Keys) != 4 {
-		// it is expected tha GraphML has 4 keys: one common and three specific to the Graph element
-		t.Error("len(gr.parent.keys) != 4", len(graph.parent.Keys))
-	}
-	if len(graph.Data) != 4 {
-		// it is expected that Graph element has 4 data elements
-		t.Error("len(node.data) != 4", len(graph.Data))
-	}
+	assert.Len(t, graph.parent.Keys, 4,
+		"it is expected tha GraphML has 4 keys: one common and three specific to the Graph element")
+	assert.Len(t, graph.Data, 4, "it is expected that Graph element has 4 data elements")
 
 	// check if default value of common key was used
 	for _, d := range graph.Data {
-		if d.ID == c_key.ID && d.Value != c_key.DefaultValue {
-			t.Error("d.Value != c_key.DefaultValue", d.Value, c_key.DefaultValue)
+		if d.ID == commonKey.ID {
+			assert.Equal(t, commonKey.DefaultValue, d.Value, "wrong default key value")
 		}
 	}
 
 	// check attribute without value an without default value
 	commonKeyName2 := "height"
-	_, err = gml.RegisterKey(KeyForAll, commonKeyName2, keyDescr, reflect.TypeOf(keyDefault).Kind(), nil)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	_, err = gml.RegisterKey(KeyForAll, commonKeyName2, keyDesc, reflect.TypeOf(keyDefault).Kind(), nil)
+	require.NoError(t, err, "failed to register key: %s", commonKeyName2)
 
 	// add node with empty attribute which has no default value
 	attributes[commonKeyName2] = NotAValue
 	n, err := graph.AddNode(attributes, "test node with empty attribute without default value")
-	// no node should be created
-	if n != nil {
-		t.Error("node should not be added due to attribute error")
-	}
-	// error must be raised
-	if err == nil {
-		t.Error("Error must be raised for empty attribute and no default value")
-		return
-	}
-
+	assert.Nil(t, n, "node should not be added due to attribute error")
+	assert.EqualError(t, err, "empty attribute without default value: height",
+		"error must be raised for empty attribute and no default value")
 }
 
 func TestGraphML_RegisterKeyForAll(t *testing.T) {
@@ -357,40 +244,26 @@ func TestGraphML_RegisterKeyForAll(t *testing.T) {
 	gml := NewGraphML(description)
 
 	commonKeyName := "weight"
-	keyDescr := "the weight function"
+	keyDesc := "the weight function"
 	keyDefault := 100.0
-	_, err := gml.RegisterKey(KeyForAll, commonKeyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	_, err := gml.RegisterKey(KeyForAll, commonKeyName, keyDesc, reflect.TypeOf(keyDefault).Kind(), keyDefault)
+	require.NoError(t, err, "failed to register key: %s", commonKeyName)
 
 	// register graph and test number of keys
 	attributes := make(map[string]interface{})
 	attributes[commonKeyName] = 100.1
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes["attr_bool"] = false
+	attributes["attr_integer"] = 120
+	attributes["attr_string"] = "string data"
 
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if graph == nil {
-		t.Error("gr == nil")
-		return
-	}
+	require.NoError(t, err, "failed to add graph")
+	require.NotNil(t, graph)
 
 	// check attributes processing
-	if len(graph.parent.Keys) != 4 {
-		// it is expected tha GraphML has 4 keys: one common and three specific to the Graph element
-		t.Error("len(gr.parent.keys) != 4", len(graph.parent.Keys))
-	}
-	if len(graph.Data) != 4 {
-		// it is expected that Graph element has 4 data elements
-		t.Error("len(node.data) != 4", len(graph.Data))
-	}
+	assert.Len(t, graph.parent.Keys, 4,
+		"it is expected tha GraphML has 4 keys: one common and three specific to the Graph element")
+	assert.Len(t, graph.Data, 4, "it is expected that Graph element has 4 data elements")
 }
 
 func TestGraphML_RegisterKey(t *testing.T) {
@@ -398,59 +271,34 @@ func TestGraphML_RegisterKey(t *testing.T) {
 	gml := NewGraphML(description)
 
 	keyName := "weight"
-	keyDescr := "the weight function"
+	keyDesc := "the weight function"
 	keyDefault := 100.0
-	_, err := gml.RegisterKey(KeyForNode, keyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if len(gml.Keys) != 1 {
-		t.Error("len(gml.keys) != 1", len(gml.Keys))
-		return
-	}
+	_, err := gml.RegisterKey(KeyForNode, keyName, keyDesc, reflect.TypeOf(keyDefault).Kind(), keyDefault)
+	require.NoError(t, err, "failed to register key: %s", keyName)
+	require.Len(t, gml.Keys, 1)
 
-	if gml.Keys[0].Name != keyName {
-		t.Error("gml.keys[0].name != keyName", gml.Keys[0].Name)
-	}
-	if gml.Keys[0].Description != keyDescr {
-		t.Error("gml.keys[0].Description != keyDescr", gml.Keys[0].Description)
-	}
-	if gml.Keys[0].KeyType != "double" {
-		t.Error("gml.keys[0].keyType != double", gml.Keys[0].KeyType)
-	}
-	if val, err := strconv.ParseFloat(gml.Keys[0].DefaultValue, 64); err != nil {
-		t.Error(err)
-	} else if keyDefault != val {
-		t.Error("keyDefault != val", keyDefault, val)
-	}
-	if gml.Keys[0].Target != KeyForNode {
-		t.Error("gml.keys[0].keyFor != KeyForNode", gml.Keys[0].Target)
-	}
-	if gml.Keys[0].ID != "d0" {
-		t.Error("gml.keys[0].ID != d0", gml.Keys[0].ID)
-	}
+	// check key attributes
+	key := gml.Keys[0]
+	assert.Equal(t, keyName, key.Name)
+	assert.Equal(t, keyDesc, key.Description)
+	assert.Equal(t, DoubleType, key.KeyType)
+	val, err := strconv.ParseFloat(key.DefaultValue, 64)
+	require.NoError(t, err, "failed to parse key value")
+	assert.Equal(t, keyDefault, val)
+	assert.Equal(t, KeyForNode, key.Target)
+	assert.Equal(t, "d0", key.ID)
 
 	// register key with the same standard identifier and check that error raised
-	_, err = gml.RegisterKey(KeyForNode, keyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault + 100)
-	if err == nil {
-		t.Error("error should be raised when attempting to register Key with already existing standard identifier")
-	}
+	_, err = gml.RegisterKey(KeyForNode, keyName, keyDesc, reflect.TypeOf(keyDefault).Kind(), keyDefault+100)
+	assert.EqualError(t, err, fmt.Sprintf("key with given name already registered: %s", keyName),
+		"error should be raised when attempting to register Key with already existing standard identifier")
 
 	// register another key and check ID
 	keyName = "height"
-	_, err = gml.RegisterKey(KeyForNode, keyName, keyDescr, reflect.TypeOf(keyDefault).Kind(), keyDefault + 100)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if len(gml.Keys) != 2 {
-		t.Error("len(gml.keys) != 2", len(gml.Keys))
-		return
-	}
-	if gml.Keys[1].ID != "d1" {
-		t.Error("gml.keys[1].ID != d1", gml.Keys[1].ID)
-	}
+	_, err = gml.RegisterKey(KeyForNode, keyName, keyDesc, reflect.TypeOf(keyDefault).Kind(), keyDefault+100)
+	require.NoError(t, err, "failed to register key with name: %s", keyName)
+	require.Len(t, gml.Keys, 2, "wrong keys number")
+	assert.Equal(t, "d1", gml.Keys[1].ID)
 }
 
 func TestGraph_AddNode(t *testing.T) {
@@ -495,38 +343,25 @@ func TestNode_GetAttributes(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
 	gr, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add graph")
 
 	// add node
 	attributes := make(map[string]interface{})
-	attributes["double"] = 100.1
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes["attr_double"] = 100.1
+	attributes["attr_bool"] = false
+	attributes["attr_integer"] = 120
+	attributes["attr_string"] = "string data"
 
 	description = "test node"
 	node, err := gr.AddNode(attributes, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add node: %s", description)
 
 	// get attributes and test
-	n_attr, err := node.GetAttributes()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if len(n_attr) != len(attributes) {
-		t.Error("len(n_attr) != len(attributes)", len(n_attr), len(attributes))
-	}
-	for k, v := range n_attr {
-		if v != attributes[k] {
-			t.Error("v != attributes[k] for:", k)
-		}
+	nAttr, err := node.GetAttributes()
+	require.NoError(t, err, "failed to get attributes")
+	require.Len(t, nAttr, len(attributes))
+	for k, v := range nAttr {
+		assert.Equal(t, attributes[k], v, "wrong attribute for key: %s", k)
 	}
 }
 
@@ -534,129 +369,81 @@ func TestGraph_AddEdge(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
 	gr, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add graph")
+
 	// Add nodes
-	var n1, n2 *Node
-	if n1, err = gr.AddNode(nil, "#1"); err != nil {
-		t.Error(err)
-		return
-	}
-	if n2, err = gr.AddNode(nil, "#2"); err != nil {
-		t.Error(err)
-		return
-	}
+	n1, err := gr.AddNode(nil, "#1")
+	require.NoError(t, err)
+	n2, err := gr.AddNode(nil, "#2")
+	require.NoError(t, err)
 
 	// Add graph
 	attributes := make(map[string]interface{})
-	attributes["double"] = 100.1
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes["attr_double"] = 100.1
+	attributes["attr_bool"] = false
+	attributes["attr_integer"] = 120
+	attributes["attr_string"] = "string data"
 
 	description = "test edge"
 	edge, err := gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add edge: %s", description)
 
 	// test results
-	if len(gr.Edges) != 1 {
-		t.Error("len(gr.edges) != 1", len(gr.Edges))
-	}
-	if len(gr.edgesMap) != 1 {
-		t.Error("len(gr.edgesMap) != 1", len(gr.edgesMap))
-	}
-	if edge.Description != description {
-		t.Error("edge.Description != description", edge.Description)
-	}
-	if edge.Source != n1.ID {
-		t.Error("edge.source != n1.ID ", edge.Source, n1.ID)
-	}
-	if edge.Target != n2.ID {
-		t.Error("edge.target != n2.ID", edge.Target, n2.ID)
-	}
-	if len(edge.Directed) != 0 {
-		t.Error("len(edge.directed) != 0", len(edge.Directed))
-	}
-	if _, ok := gr.edgesMap[edgeIdentifier(n1.ID, n2.ID)]; !ok {
-		t.Error("edge not found in edges map")
-	}
+	assert.Len(t, gr.Edges, 1)
+	assert.Len(t, gr.edgesMap, 1)
+	assert.Equal(t, description, edge.Description)
+	assert.Equal(t, n1.ID, edge.Source)
+	assert.Equal(t, n2.ID, edge.Target)
+	assert.Empty(t, edge.Directed, "directed should be empty")
+
+	assert.Contains(t, gr.edgesMap, edgeIdentifier(n1.ID, n2.ID), "edge not found in edges map")
 
 	// check attributes
 	checkAttributes(attributes, edge.Data, KeyForEdge, gr.parent, t)
 
 	// check error by adding the same node
 	edge, err = gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
-	if err == nil {
-		t.Error("error must be raised when add same edge")
-		return
-	}
+	require.EqualError(t, err, "edge already added to the graph")
 
 	// check no error for directed node backward
 	edge, err = gr.AddEdge(n2, n1, attributes, EdgeDirectionDefault, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
 }
 
 func TestEdge_GetAttributes(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
 	gr, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add graph")
+
 	// Add nodes
-	var n1, n2 *Node
-	if n1, err = gr.AddNode(nil, "#1"); err != nil {
-		t.Error(err)
-		return
-	}
-	if n2, err = gr.AddNode(nil, "#2"); err != nil {
-		t.Error(err)
-		return
-	}
+	n1, err := gr.AddNode(nil, "#1")
+	require.NoError(t, err)
+	n2, err := gr.AddNode(nil, "#2")
+	require.NoError(t, err)
 
 	// Add graph
 	attributes := make(map[string]interface{})
-	attributes["double"] = 100.1
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes["attr_double"] = 100.1
+	attributes["attr_bool"] = false
+	attributes["attr_integer"] = 120
+	attributes["attr_string"] = "string data"
 
 	description = "test edge"
 	edge, err := gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err, "failed to add edge: %s", description)
 
 	// get attributes and check results
-	e_attr, err := edge.GetAttributes()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if e_attr == nil {
-		t.Error("e_attr == nil")
-	}
-	if len(e_attr) != len(attributes) {
-		t.Error("len(n_attr) != len(attributes)", len(e_attr), len(attributes))
-	}
-	for k, v := range e_attr {
-		if v != attributes[k] {
-			t.Error("v != attributes[k] for:", k)
-		}
+	attrs, err := edge.GetAttributes()
+	require.NoError(t, err, "failed to get attributes")
+	require.NotNil(t, attrs)
+	assert.Len(t, attrs, len(attributes))
+	for k, v := range attrs {
+		assert.Equal(t, attributes[k], v, "wrong attribute for: %s", k)
 	}
 }
 
-func checkAttributes(attributes map[string]interface{}, data_holders []*Data, target KeyForElement, gml *GraphML, t *testing.T) {
+func checkAttributes(attributes map[string]interface{}, dataHolders []*Data, target KeyForElement, gml *GraphML, t *testing.T) {
 	count := 0
 	for name, val := range attributes {
 		keyNameId := keyIdentifier(name, target)
@@ -665,91 +452,56 @@ func checkAttributes(attributes map[string]interface{}, data_holders []*Data, ta
 			return
 		} else {
 			// check if attribute data value was saved
-			for i, data := range data_holders {
+			for i, data := range dataHolders {
 				if data.Key == key.ID {
-					str_val := fmt.Sprint(val)
-					if data.Value != str_val {
-						t.Error("data.value != str_val at:", i)
-					}
+					strVal := fmt.Sprint(val)
+					assert.Equal(t, strVal, data.Value, "wrong data value at: %d", i)
 					// increment counter to count this attribute
 					count++
 				}
 			}
 		}
 	}
-	if count != len(attributes) {
-		t.Error("failed to check all attributes")
-	}
+	assert.Equal(t, len(attributes), count, "failed to check all attributes")
 }
 
 func TestGraphML_stringValueIfSupported(t *testing.T) {
-	testBool := true
-	res, err := stringValueIfSupported(testBool, "boolean")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if pres, err := strconv.ParseBool(res); err != nil {
-		t.Error(err)
-	} else if testBool != pres {
-		t.Error("testBool != pres", testBool, pres)
-	}
+	res, err := stringValueIfSupported(true, BooleanType)
+	require.NoError(t, err)
+	bRes, err := strconv.ParseBool(res)
+	require.NoError(t, err)
+	assert.True(t, bRes)
 
 	testInt := 42
 	res, err = stringValueIfSupported(testInt, "int")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if pres, err := strconv.ParseInt(res, 10, 32); err != nil {
-		t.Error(err)
-	} else if testInt != int(pres) {
-		t.Error("testInt != pres", testInt, pres)
-	}
+	require.NoError(t, err)
+	iRes, err := strconv.ParseInt(res, 10, 32)
+	require.NoError(t, err)
+	assert.EqualValues(t, testInt, iRes)
 
 	testLong := int64(12993888475775)
 	res, err = stringValueIfSupported(testLong, "long")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if pres, err := strconv.ParseInt(res, 10, 64); err != nil {
-		t.Error(err)
-	} else if testLong != pres {
-		t.Error("testLong != pres", testLong, pres)
-	}
+	require.NoError(t, err)
+	lRes, err := strconv.ParseInt(res, 10, 64)
+	require.NoError(t, err)
+	assert.Equal(t, testLong, lRes)
 
 	testFloat := float32(0.5)
 	res, err = stringValueIfSupported(testFloat, "float")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if pres, err := strconv.ParseFloat(res, 32); err != nil {
-		t.Error(err)
-	} else if testFloat != float32(pres) {
-		t.Error("testFloat != pres", testFloat, pres)
-	}
+	require.NoError(t, err)
+	fRes, err := strconv.ParseFloat(res, 32)
+	require.NoError(t, err)
+	assert.EqualValues(t, testFloat, fRes)
 
-	testDouble := float64(10000.552)
+	testDouble := 10000.552
 	res, err = stringValueIfSupported(testDouble, "double")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if pres, err := strconv.ParseFloat(res, 64); err != nil {
-		t.Error(err)
-	} else if testDouble != pres {
-		t.Error("testDouble != pres", testDouble, pres)
-	}
+	require.NoError(t, err)
+	dRes, err := strconv.ParseFloat(res, 64)
+	require.NoError(t, err)
+	assert.Equal(t, testDouble, dRes)
 
 	testString := "test string"
 	res, err = stringValueIfSupported(testString, "string")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if testString != res {
-		t.Error("testString != res", testString, res)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, testString, res)
 }
