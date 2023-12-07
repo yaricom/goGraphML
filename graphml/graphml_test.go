@@ -72,6 +72,10 @@ func TestGraphML_Decode(t *testing.T) {
 		assert.Equal(t, desc, n.Description, "wrong node description at: %d", i)
 		// check attributes
 		checkAttributes(attributes, n.Data, KeyForNode, gml, t)
+		// check GetAttributes
+		attrs, err := n.GetAttributes()
+		assert.Nil(t, err, "failed to get attributes")
+		assert.Len(t, attrs, len(attributes), "wrong attribute number")
 	}
 
 	// check Edge elements
@@ -85,6 +89,10 @@ func TestGraphML_Decode(t *testing.T) {
 		assert.Equal(t, "test edge", e.Description, "wrong edge description: %v", e)
 		// check attributes
 		checkAttributes(attributes, e.Data, KeyForEdge, gml, t)
+		// check GetAttributes
+		attrs, err := e.GetAttributes()
+		assert.Nil(t, err, "failed to get attributes")
+		assert.Len(t, attrs, len(attributes), "wrong attribute number")
 	}
 }
 
