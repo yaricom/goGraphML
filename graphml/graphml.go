@@ -571,9 +571,7 @@ func valueByType(val string, keyType DataType) (interface{}, error) {
 		} else {
 			return fVal, nil
 		}
-	case StringType:
-		return val, nil
 	default:
-		return nil, errors.New(fmt.Sprintf("unsupported value type: %s", keyType))
+		return val, nil
 	}
 }
