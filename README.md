@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/yaricom/goGraphML.svg?branch=master)](https://travis-ci.org/yaricom/goGraphML) [![GoDoc](https://godoc.org/github.com/yaricom/goGraphML/neat?status.svg)](https://godoc.org/github.com/yaricom/goGraphML/graphml)
+[![CI](https://github.com/yaricom/goGraphML/actions/workflows/ci.yml/badge.svg)](https://github.com/yaricom/goGraphML/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/yaricom/goGraphML/graph/badge.svg?token=8J56DK078X)](https://codecov.io/gh/yaricom/goGraphML) [![GoDoc](https://godoc.org/github.com/yaricom/goGraphML/neat?status.svg)](https://godoc.org/github.com/yaricom/goGraphML/graphml)
 
 The GraphML support for GO language
 
