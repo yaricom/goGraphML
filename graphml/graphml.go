@@ -239,10 +239,15 @@ func (gml *GraphML) Decode(r io.Reader) error {
 		} else if gr.EdgeDefault == edgeDirectionUndirected {
 			gr.edgesDirection = EdgeDirectionUndirected
 		}
-		// populate edges map
+		// populate edges map and link them to their graph
 		gr.edgesMap = make(map[string]*Edge)
 		for _, e := range gr.Edges {
 			gr.edgesMap[edgeIdentifier(e.Source, e.Target)] = e
+			e.graph = gr
+		}
+		// properly link nodes to their graph
+		for _, n := range gr.Nodes {
+			n.graph = gr
 		}
 	}
 
