@@ -31,8 +31,54 @@ func TestNewGraphMLWithAttributes(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, gml)
 	assert.Equal(t, description, gml.Description)
+
 	// check attributes
-	checkAttributes(attributes, gml.Data, KeyForGraphML, gml, t)
+	attr, err := gml.GetAttributes()
+	require.NoError(t, err)
+	assert.Equal(t, attributes, attr)
+}
+
+func TestGraphML_Decode_keyTypeDefault(t *testing.T) {
+	graphFile, err := os.Open("../data/test_graph_default_key_type.xml")
+	require.NoError(t, err, "failed to open file")
+	// decode
+	gml := NewGraphML("")
+	err = gml.Decode(graphFile)
+	require.NoError(t, err, "failed to decode")
+
+	// test results
+	attributes := make(map[string]interface{})
+	attributes["integer-key"] = 10
+	attributes["test-key"] = "test data"
+
+	// check Graph element
+	//
+	require.Len(t, gml.Graphs, 1, "wrong graphs number")
+	graph := gml.Graphs[0]
+
+	// check Node elements
+	//
+	require.Len(t, graph.Nodes, 1, "wrong nodes number")
+	for i, n := range graph.Nodes {
+		id := fmt.Sprintf("n%d", i)
+		assert.Equal(t, id, n.ID, "wrong node ID at: %d", i)
+		desc := fmt.Sprintf("test node #%d", i+1)
+		assert.Equal(t, desc, n.Description, "wrong node description at: %d", i)
+		// check GetAttributes
+		attrs, err := n.GetAttributes()
+		require.NoError(t, err, "failed to get attributes")
+		assert.Equal(t, attributes, attrs)
+	}
+
+	// check Key types was set properly
+	//
+	key := gml.GetKey("test-key", KeyForNode)
+	require.NotNil(t, key, "key expected")
+	assert.Equal(t, key.KeyType, StringType)
+
+	key = gml.GetKey("integer-key", KeyForNode)
+	require.NotNil(t, key, "key expected")
+	assert.Equal(t, key.KeyType, IntType)
 }
 
 func TestGraphML_Decode(t *testing.T) {
@@ -60,39 +106,37 @@ func TestGraphML_Decode(t *testing.T) {
 	assert.Len(t, graph.edgesMap, 1, "wrong size of edges map")
 
 	// check attributes
-	checkAttributes(attributes, gml.Graphs[0].Data, KeyForGraph, gml, t)
+	attrs, err := graph.GetAttributes()
+	require.NoError(t, err)
+	assert.Equal(t, attributes, attrs)
 
 	// check Node elements
 	//
 	require.Len(t, graph.Nodes, 2, "wrong nodes number")
-	for i, n := range gml.Graphs[0].Nodes {
+	for i, n := range graph.Nodes {
 		id := fmt.Sprintf("n%d", i)
 		assert.Equal(t, id, n.ID, "wrong node ID at: %d", i)
 		desc := fmt.Sprintf("test node #%d", i+1)
 		assert.Equal(t, desc, n.Description, "wrong node description at: %d", i)
 		// check attributes
-		checkAttributes(attributes, n.Data, KeyForNode, gml, t)
-		// check GetAttributes
 		attrs, err := n.GetAttributes()
-		assert.Nil(t, err, "failed to get attributes")
-		assert.Len(t, attrs, len(attributes), "wrong attribute number")
+		require.NoError(t, err, "failed to get attributes")
+		assert.Equal(t, attributes, attrs)
 	}
 
 	// check Edge elements
 	//
 	require.Len(t, graph.Edges, 1, "wrong edges number")
-	for i, e := range gml.Graphs[0].Edges {
+	for i, e := range graph.Edges {
 		id := fmt.Sprintf("e%d", i)
 		assert.Equal(t, id, e.ID, "wrong edge ID at: %d", i)
 		assert.Equal(t, graph.Nodes[0].ID, e.Source, "wrong edge source: %v", e)
 		assert.Equal(t, graph.Nodes[1].ID, e.Target, "wrong edge target: %v", e)
 		assert.Equal(t, "test edge", e.Description, "wrong edge description: %v", e)
 		// check attributes
-		checkAttributes(attributes, e.Data, KeyForEdge, gml, t)
-		// check GetAttributes
 		attrs, err := e.GetAttributes()
-		assert.Nil(t, err, "failed to get attributes")
-		assert.Len(t, attrs, len(attributes), "wrong attribute number")
+		assert.NoError(t, err, "failed to get attributes")
+		assert.Equal(t, attributes, attrs)
 	}
 }
 
@@ -161,7 +205,9 @@ func TestGraphML_AddGraph(t *testing.T) {
 	assert.Len(t, graph.Data, 4, "wrong root data functions number")
 
 	// check attributes
-	checkAttributes(attributes, graph.Data, KeyForGraph, graph.parent, t)
+	attrs, err := graph.GetAttributes()
+	require.NoError(t, err, "failed to get attributes")
+	assert.Equal(t, attributes, attrs)
 
 	// test error
 	graph, err = gml.AddGraph(description, EdgeDirectionDefault, nil)
@@ -234,7 +280,7 @@ func TestGraphML_RegisterKeyDefaultValue(t *testing.T) {
 		}
 	}
 
-	// check attribute without value an without default value
+	// check attribute without value and without default value
 	commonKeyName2 := "height"
 	_, err = gml.RegisterKey(KeyForAll, commonKeyName2, keyDesc, reflect.TypeOf(keyDefault).Kind(), nil)
 	require.NoError(t, err, "failed to register key: %s", commonKeyName2)
@@ -344,7 +390,9 @@ func TestGraph_AddNode(t *testing.T) {
 	}
 
 	// check attributes
-	checkAttributes(attributes, node.Data, KeyForNode, gr.parent, t)
+	attrs, err := node.GetAttributes()
+	require.NoError(t, err, "failed to get attributes")
+	assert.Equal(t, attributes, attrs)
 }
 
 func TestNode_GetAttributes(t *testing.T) {
@@ -368,9 +416,7 @@ func TestNode_GetAttributes(t *testing.T) {
 	nAttr, err := node.GetAttributes()
 	require.NoError(t, err, "failed to get attributes")
 	require.Len(t, nAttr, len(attributes))
-	for k, v := range nAttr {
-		assert.Equal(t, attributes[k], v, "wrong attribute for key: %s", k)
-	}
+	assert.Equal(t, attributes, nAttr)
 }
 
 func TestGraph_AddEdge(t *testing.T) {
@@ -407,7 +453,9 @@ func TestGraph_AddEdge(t *testing.T) {
 	assert.Contains(t, gr.edgesMap, edgeIdentifier(n1.ID, n2.ID), "edge not found in edges map")
 
 	// check attributes
-	checkAttributes(attributes, edge.Data, KeyForEdge, gr.parent, t)
+	attrs, err := edge.GetAttributes()
+	require.NoError(t, err, "failed to get attributes")
+	assert.Equal(t, attributes, attrs)
 
 	// check error by adding the same node
 	edge, err = gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
@@ -449,28 +497,6 @@ func TestEdge_GetAttributes(t *testing.T) {
 	for k, v := range attrs {
 		assert.Equal(t, attributes[k], v, "wrong attribute for: %s", k)
 	}
-}
-
-func checkAttributes(attributes map[string]interface{}, dataHolders []*Data, target KeyForElement, gml *GraphML, t *testing.T) {
-	count := 0
-	for name, val := range attributes {
-		keyNameId := keyIdentifier(name, target)
-		if key := gml.GetKey(name, target); key == nil {
-			t.Error("failed to find Key with standard identifier:", keyNameId)
-			return
-		} else {
-			// check if attribute data value was saved
-			for i, data := range dataHolders {
-				if data.Key == key.ID {
-					strVal := fmt.Sprint(val)
-					assert.Equal(t, strVal, data.Value, "wrong data value at: %d", i)
-					// increment counter to count this attribute
-					count++
-				}
-			}
-		}
-	}
-	assert.Equal(t, len(attributes), count, "failed to check all attributes")
 }
 
 func TestGraphML_stringValueIfSupported(t *testing.T) {
