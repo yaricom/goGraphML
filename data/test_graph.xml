@@ -19,7 +19,7 @@
         <desc>test graph</desc>
         <node id="n0">
             <desc>test node #1</desc>
-            <data key="d0">10.2</data>
+            <data key="d0"/>
             <data key="d4">false</data>
             <data key="d5">120</data>
             <data key="d6">string data</data>

@@ -11,52 +11,52 @@ import (
 	"strconv"
 )
 
-// The Not value of data attribute to substitute with default one if present
+// NotAValue The Not value of data attribute to substitute with default one if present
 var NotAValue interface{} = nil
 
-// The elements where data-function can be attached
+// KeyForElement The elements where data-function can be attached
 type KeyForElement string
 
 const (
-	// the data-function is for root GraphML element only
+	// KeyForGraphML the data-function is for root GraphML element only
 	KeyForGraphML KeyForElement = "graphml"
-	// the data-function is for Graph element only
+	// KeyForGraph the data-function is for Graph element only
 	KeyForGraph KeyForElement = "graph"
-	// the data-function is for Node element only
+	// KeyForNode the data-function is for Node element only
 	KeyForNode KeyForElement = "node"
-	// the data-function is for Edge element only
+	// KeyForEdge the data-function is for Edge element only
 	KeyForEdge KeyForElement = "edge"
-	// the data-function is for all elements
+	// KeyForAll the data-function is for all elements
 	KeyForAll KeyForElement = "all"
 )
 
-// The GraphML data types
+// DataType The GraphML data types
 type DataType string
 
 const (
-	// boolean (reflect.Bool)
+	// BooleanType boolean (reflect.Bool)
 	BooleanType DataType = "boolean"
-	// single integer precision (reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint8, reflect.Uint16)
+	// IntType single integer precision (reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint8, reflect.Uint16)
 	IntType DataType = "int"
-	// double integer precision (reflect.Int64, reflect.Uint32)
+	// LongType double integer precision (reflect.Int64, reflect.Uint32)
 	LongType DataType = "long"
-	// single float precision (reflect.Float32)
+	// FloatType single float precision (reflect.Float32)
 	FloatType DataType = "float"
-	// double float precision (reflect.Float64)
+	// DoubleType double float precision (reflect.Float64)
 	DoubleType DataType = "double"
-	// string value (reflect.String)
+	// StringType string value (reflect.String)
 	StringType DataType = "string"
 )
 
-// The edge direction
+// EdgeDirection The edge direction
 type EdgeDirection int
 
 const (
-	// edge direction is not specified
+	// EdgeDirectionDefault edge direction is not specified
 	EdgeDirectionDefault EdgeDirection = iota
-	// edge is directed
+	// EdgeDirectionDirected edge is directed
 	EdgeDirectionDirected
-	// edge is undirected
+	// EdgeDirectionUndirected edge is undirected
 	EdgeDirectionUndirected
 )
 
@@ -65,7 +65,7 @@ const (
 	edgeDirectionUndirected = "undirected"
 )
 
-// The root element
+// GraphML The root element
 type GraphML struct {
 	// The name of root element
 	XMLName xml.Name `xml:"graphml"`
@@ -88,9 +88,12 @@ type GraphML struct {
 	keysByIdentifier map[string]*Key
 	// The map to look for keys by their IDs. Useful for fast reverse mapping of Data -> Key -> Attribute Name/Type
 	keysById map[string]*Key
+	// The default key type to use when no key type specified
+	keyTypeDefault DataType
 }
 
-// Description: In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint
+// Key the data function declaration.
+// In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint
 // and to the whole collection of graphs described by the content of <graphml>. These functions are declared by <key>
 // elements (children of <graphml>) and defined by <data> elements. Occurrence: <graphml>.
 type Key struct {
@@ -108,6 +111,7 @@ type Key struct {
 	DefaultValue string `xml:"default,omitempty"`
 }
 
+// Data the data function definition.
 // In GraphML there may be data-functions attached to graphs, nodes, ports, edges, hyperedges and endpoint and to the
 // whole collection of graphs described by the content of <graphml>. These functions are declared by <key> elements
 // (children of <graphml>) and defined by <data> elements. Occurrence: <graphml>, <graph>, <node>, <port>, <edge>,
@@ -122,7 +126,7 @@ type Data struct {
 	Value string `xml:",chardata"`
 }
 
-// Describes one graph in this document. Occurrence: <graphml>, <node>, <edge>, <hyperedge>.
+// Graph Describes one graph in this document. Occurrence: <graphml>, <node>, <edge>, <hyperedge>.
 type Graph struct {
 	// The ID of this graph element (in form gX, where X denotes the number of occurrences of the graph element before the current one)
 	ID string `xml:"id,attr"`
@@ -146,7 +150,7 @@ type Graph struct {
 	edgesDirection EdgeDirection
 }
 
-// Describes one node in the <graph> containing this <node>. Occurrence: <graph>.
+// Node Describes one node in the <graph> containing this <node>. Occurrence: <graph>.
 type Node struct {
 	// The ID of this node element (in form nX, where X denotes the number of occurrences of the node element before the current one)
 	ID string `xml:"id,attr"`
@@ -159,7 +163,7 @@ type Node struct {
 	graph *Graph
 }
 
-// Describes an edge in the <graph> which contains this <edge>. Occurrence: <graph>.
+// Edge Describes an edge in the <graph> which contains this <edge>. Occurrence: <graph>.
 type Edge struct {
 	// The ID of this edge element (in form eX, where X is the number of edge elements before this one)
 	ID string `xml:"id,attr"`
@@ -179,8 +183,8 @@ type Edge struct {
 	graph *Graph
 }
 
-// Creates new GraphML instance
-func NewGraphML(description string) *GraphML {
+// NewGraphMLWithDefaultKeyType creates new GraphML instance with provided description and default data type of the key.
+func NewGraphMLWithDefaultKeyType(description string, keyTypeDefault DataType) *GraphML {
 	gml := GraphML{
 		Description:       description,
 		Keys:              make([]*Key, 0),
@@ -191,11 +195,17 @@ func NewGraphML(description string) *GraphML {
 		XsiSchemaLocation: "http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd",
 		keysByIdentifier:  make(map[string]*Key),
 		keysById:          make(map[string]*Key),
+		keyTypeDefault:    keyTypeDefault,
 	}
 	return &gml
 }
 
-// Creates new GraphML instance with given attributes
+// NewGraphML creates new GraphML instance with provided description.
+func NewGraphML(description string) *GraphML {
+	return NewGraphMLWithDefaultKeyType(description, StringType)
+}
+
+// NewGraphMLWithAttributes creates new GraphML instance with given attributes
 func NewGraphMLWithAttributes(description string, attributes map[string]interface{}) (gml *GraphML, err error) {
 	gml = NewGraphML(description)
 	// add attributes
@@ -205,7 +215,7 @@ func NewGraphMLWithAttributes(description string, attributes map[string]interfac
 	return gml, nil
 }
 
-// Encodes GraphML into provided Writer. If withIndent set then each element begins on a new indented line.
+// Encode encodes GraphML into provided Writer. If withIndent set then each element begins on a new indented line.
 func (gml *GraphML) Encode(w io.Writer, withIndent bool) error {
 	enc := xml.NewEncoder(w)
 	if withIndent {
@@ -218,7 +228,7 @@ func (gml *GraphML) Encode(w io.Writer, withIndent bool) error {
 	return err
 }
 
-// Decodes GraphML from provided Reader
+// Decode decodes GraphML from provided Reader
 func (gml *GraphML) Decode(r io.Reader) error {
 	dec := xml.NewDecoder(r)
 	err := dec.Decode(gml)
@@ -228,6 +238,9 @@ func (gml *GraphML) Decode(r io.Reader) error {
 
 	// populate auxiliary data structure
 	for _, key := range gml.Keys {
+		if key.KeyType == "" {
+			key.KeyType = gml.keyTypeDefault
+		}
 		gml.keysByIdentifier[keyIdentifier(key.Name, key.Target)] = key
 		gml.keysById[key.ID] = key
 	}
@@ -254,7 +267,7 @@ func (gml *GraphML) Decode(r io.Reader) error {
 	return err
 }
 
-// Register data function with GraphML instance
+// RegisterKey registers data function with GraphML instance
 func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, keyType reflect.Kind, defaultValue interface{}) (key *Key, err error) {
 	if key := gml.GetKey(name, target); key != nil {
 		return nil, errors.New(fmt.Sprintf("key with given name already registered: %s", name))
@@ -284,8 +297,8 @@ func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, 
 	return key, nil
 }
 
-// Looks for registered keys with specified name for a given target element. If specific target has no registered key then
-// common target (KeyForAll) will be checked next. Returns Key (either specific or common) or nil.
+// GetKey looks for registered keys with specified name for a given target element. If specific target has no
+// registered key then common target (KeyForAll) will be checked next. Returns Key (either specific or common) or nil.
 func (gml *GraphML) GetKey(name string, target KeyForElement) *Key {
 	if key, ok := gml.keysByIdentifier[keyIdentifier(name, target)]; ok {
 		// found element specific data-function
@@ -297,7 +310,7 @@ func (gml *GraphML) GetKey(name string, target KeyForElement) *Key {
 	return nil
 }
 
-// Creates new Graph and add it to the root GraphML
+// AddGraph creates new Graph and add it to the root GraphML
 func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attributes map[string]interface{}) (graph *Graph, err error) {
 	count := len(gml.Graphs)
 	var edgeDirection string
@@ -330,7 +343,7 @@ func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attr
 	return graph, nil
 }
 
-// Adds node to the graph with provided additional attributes and description
+// AddNode adds node to the graph with provided additional attributes and description
 func (gr *Graph) AddNode(attributes map[string]interface{}, description string) (node *Node, err error) {
 	count := len(gr.Nodes)
 	node = &Node{
@@ -349,7 +362,7 @@ func (gr *Graph) AddNode(attributes map[string]interface{}, description string) 
 	return node, nil
 }
 
-// Adds edge to the graph which connects two its nodes with provided additional attributes and description
+// AddEdge adds edge to the graph which connects two its nodes with provided additional attributes and description
 func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}, edgeDirection EdgeDirection, description string) (edge *Edge, err error) {
 	// test if edge already exists
 	edgeIdentification := edgeIdentifier(source.ID, target.ID)
@@ -390,7 +403,7 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 	return edge, nil
 }
 
-// method to test if edge exists between given nodes. If edge exists it will be returned, otherwise nil returned
+// GetEdge method to test if edge exists between given nodes. If edge exists it will be returned, otherwise nil returned
 func (gr *Graph) GetEdge(sourceId, targetId string) *Edge {
 	edgeIdentification := edgeIdentifier(sourceId, targetId)
 	if edge, ok := gr.edgesMap[edgeIdentification]; ok {
@@ -399,12 +412,22 @@ func (gr *Graph) GetEdge(sourceId, targetId string) *Edge {
 	return nil
 }
 
-// returns data attributes map associated with Node
+// GetAttributes return data attributes map associated with GraphML
+func (gml *GraphML) GetAttributes() (map[string]interface{}, error) {
+	return attributesForData(gml.Data, gml)
+}
+
+// GetAttributes return data attributes map associated with Graph
+func (gr *Graph) GetAttributes() (map[string]interface{}, error) {
+	return attributesForData(gr.Data, gr.parent)
+}
+
+// GetAttributes returns data attributes map associated with Node
 func (n *Node) GetAttributes() (map[string]interface{}, error) {
 	return attributesForData(n.Data, n.graph.parent)
 }
 
-// returns data attributes map associated with Edge
+// GetAttributes returns data attributes map associated with Edge
 func (e *Edge) GetAttributes() (map[string]interface{}, error) {
 	return attributesForData(e.Data, e.graph.parent)
 }
@@ -413,9 +436,21 @@ func (e *Edge) GetAttributes() (map[string]interface{}, error) {
 func attributesForData(data []*Data, gml *GraphML) (map[string]interface{}, error) {
 	attr := make(map[string]interface{})
 	for _, d := range data {
-		if key, ok := gml.keysById[d.Key]; !ok {
+		key, ok := gml.keysById[d.Key]
+		if !ok {
 			return nil, errors.New(fmt.Sprintf("failed to find attribute name/type by id: %s", d.Key))
-		} else if value, err := valueByType(d.Value, key.KeyType); err != nil {
+		}
+		// use data value of default value
+		dataValue := d.Value
+		if dataValue == "" {
+			if key.DefaultValue != "" {
+				dataValue = key.DefaultValue
+			} else {
+				return nil, errors.New(fmt.Sprintf("data has no value and key id: %s has no default value", d.Key))
+			}
+		}
+
+		if value, err := valueByType(dataValue, key.KeyType, gml.keyTypeDefault); err != nil {
 			return nil, err
 		} else {
 			attr[key.Name] = value
@@ -551,7 +586,7 @@ func stringValueIfSupported(value interface{}, keyType DataType) (string, error)
 }
 
 // Converts provided string value to the specified data type
-func valueByType(val string, keyType DataType) (interface{}, error) {
+func valueByType(val string, keyType DataType, keyTypeDefault DataType) (interface{}, error) {
 	switch keyType {
 	case BooleanType:
 		return strconv.ParseBool(val)
@@ -571,7 +606,13 @@ func valueByType(val string, keyType DataType) (interface{}, error) {
 		} else {
 			return fVal, nil
 		}
-	default:
+	case StringType:
 		return val, nil
+	default:
+		if keyTypeDefault == "" {
+			return val, nil
+		}
+		// try once more with default key type
+		return valueByType(val, keyTypeDefault, keyTypeDefault)
 	}
 }
