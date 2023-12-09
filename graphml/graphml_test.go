@@ -50,6 +50,7 @@ func TestGraphML_Decode_keyTypeDefault(t *testing.T) {
 	attributes := make(map[string]interface{})
 	attributes["integer-key"] = 10
 	attributes["test-key"] = "test data"
+	attributes["color"] = "yellow"
 
 	// check Graph element
 	//
