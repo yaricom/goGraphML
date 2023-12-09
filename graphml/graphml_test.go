@@ -81,6 +81,44 @@ func TestGraphML_Decode_keyTypeDefault(t *testing.T) {
 	assert.Equal(t, key.KeyType, IntType)
 }
 
+func TestGraphML_Decode_emptyStringDefault(t *testing.T) {
+	graphFile, err := os.Open("../data/test_graph_default_empty_string.xml")
+	require.NoError(t, err, "failed to open file")
+	// decode
+	gml := NewGraphML("")
+	err = gml.Decode(graphFile)
+	require.NoError(t, err, "failed to decode")
+
+	// test results
+	attributes := make(map[string]interface{})
+	attributes["string-key"] = ""
+
+	// check Graph element
+	//
+	require.Len(t, gml.Graphs, 1, "wrong graphs number")
+	graph := gml.Graphs[0]
+
+	// check Node elements
+	//
+	require.Len(t, graph.Nodes, 1, "wrong nodes number")
+	for i, n := range graph.Nodes {
+		id := fmt.Sprintf("n%d", i)
+		assert.Equal(t, id, n.ID, "wrong node ID at: %d", i)
+		desc := fmt.Sprintf("test node #%d", i+1)
+		assert.Equal(t, desc, n.Description, "wrong node description at: %d", i)
+		// check GetAttributes
+		attrs, err := n.GetAttributes()
+		require.NoError(t, err, "failed to get attributes")
+		assert.Equal(t, attributes, attrs)
+	}
+
+	// check Key types was set properly
+	//
+	key := gml.GetKey("string-key", KeyForNode)
+	require.NotNil(t, key, "key expected")
+	assert.Equal(t, key.KeyType, StringType)
+}
+
 func TestGraphML_Decode(t *testing.T) {
 	graphFile, err := os.Open("../data/test_graph.xml")
 	require.NoError(t, err, "failed to open file")

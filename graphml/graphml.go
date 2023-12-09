@@ -442,7 +442,7 @@ func attributesForData(data []*Data, gml *GraphML) (map[string]interface{}, erro
 		}
 		// use data value of default value
 		dataValue := d.Value
-		if dataValue == "" {
+		if dataValue == "" && key.KeyType != StringType {
 			if key.DefaultValue != "" {
 				dataValue = key.DefaultValue
 			} else {
