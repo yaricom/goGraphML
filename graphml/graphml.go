@@ -458,10 +458,13 @@ func attributesForData(data []*Data, target KeyForElement, gml *GraphML) (map[st
 	}
 	// fill defaults for undefined keys
 	for _, k := range keysForElement(gml.Keys, target) {
+		if k.DefaultValue == "" && k.KeyType != StringType {
+			continue
+		}
 		if _, ok := attr[k.Name]; !ok {
 			val, err := valueByType(k.DefaultValue, k.KeyType, gml.keyTypeDefault)
 			if err != nil {
-				return nil, err
+				return nil, errors.New("could not parse default value for key id: " + k.ID)
 			}
 			attr[k.Name] = val
 		}
