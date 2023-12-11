@@ -1,6 +1,6 @@
 # goGraphML 🇺🇦 [![Made in Ukraine](https://img.shields.io/badge/made_in-ukraine-ffd700.svg?labelColor=0057b7)](https://u24.gov.ua)
 
-[![CI](https://github.com/yaricom/goGraphML/actions/workflows/ci.yml/badge.svg)](https://github.com/yaricom/goGraphML/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/yaricom/goGraphML/graph/badge.svg?token=8J56DK078X)](https://codecov.io/gh/yaricom/goGraphML) [![GoDoc](https://godoc.org/github.com/yaricom/goGraphML/neat?status.svg)](https://godoc.org/github.com/yaricom/goGraphML/graphml)
+[![CI](https://github.com/yaricom/goGraphML/actions/workflows/ci.yml/badge.svg)](https://github.com/yaricom/goGraphML/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/yaricom/goGraphML/graph/badge.svg?token=8J56DK078X)](https://codecov.io/gh/yaricom/goGraphML) [![GoDoc](https://godoc.org/github.com/yaricom/goGraphML/neat?status.svg)](https://godoc.org/github.com/yaricom/goGraphML/graphml) [![version](https://img.shields.io/github/v/tag/yaricom/goGraphML.svg?sort=semver)](https://github.com/yaricom/goGraphML/releases/latest)
 
 The GraphML support for GO language
 
@@ -77,10 +77,11 @@ If above lookup failed the new Key will be registered for given name and targeti
 The new Graph can be added with associated attributes as following:
 
 ```GO
-    attributes := make(map[string]interface{})
-    attributes["default_weight"] = 1.1
-    attributes["acyclic"] = false
-    attributes["max_depth"] = 10
+    attributes := map[string]interface{}{
+        "default_weight": 1.1, 
+        "acyclic": false, 
+        "max_depth": 10,
+    }
 
     graph, err := gml.AddGraph("the graph", EdgeDirectionDirected, attributes)
 
@@ -96,12 +97,12 @@ where:
 The Node elements can be added to the Graph as following:
 
 ```GO
-    attributes := make(map[string]interface{})
-    attributes["X"] = 0.1
-    attributes["Y"] = 1.0
-    attributes["NodeNeuronType"] = network.InputNeuron
-    attributes["NodeActivationType"] = network.NullActivation
-
+    attributes := map[string]interface{}{
+        "X": 0.1, 
+        "Y": 1.0, 
+        "NodeNeuronType": network.InputNeuron, 
+        "NodeActivationType": network.NullActivation,
+    }
 
     node, err := gr.AddNode(attributes, "the input node")
 
@@ -116,10 +117,11 @@ where:
 The Edge elements can be added to the Graph as following:
 
 ```GO
-    attributes := make(map[string]interface{})
-    attributes["weight"] = -1.1
-    attributes["sourceId"] = 1
-    attributes["targetId"] = 3
+    attributes := map[string]interface{}{
+        "weight": -1.1, 
+        "sourceId": 1, 
+        "targetId": 3,
+    }
 
     edge, err := gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, "the first level")
 
@@ -139,25 +141,25 @@ command:
 
 ```GO
 
-    err = gml.Encode(writer, false)
+    err := gml.Encode(writer, false)
 
 ```
 where:
 
-* writer - is an io.Writer to receive serialized data
-* false - is a flag to indicate whether XML should be generated with indents to improve readability (true) or without to
-have more compact representation (false)
+* `writer` - is an `io.Writer` to receive serialized data
+* `false` - is a flag to indicate whether XML should be generated with indents to improve readability (`true`) or without to
+have more compact representation (`false`)
 
 The GraphML can also be read from serialized representation using following command:
 
 ```GO
 
-    err = gml.Decode(reader)
+    err := gml.Decode(reader)
 
 ```
 where:
 
-* reader - is an io.Reader to read data from
+* `reader` - is an `io.Reader` to read data from
 
 ## Limitations
 
