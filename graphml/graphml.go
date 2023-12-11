@@ -440,7 +440,7 @@ func attributesForData(data []*Data, target KeyForElement, gml *GraphML) (map[st
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("failed to find attribute name/type by id: %s", d.Key))
 		}
-		// use data value of default value
+		// use data value or default value
 		dataValue := d.Value
 		if dataValue == "" && key.KeyType != StringType {
 			if key.DefaultValue != "" {

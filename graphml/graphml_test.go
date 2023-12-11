@@ -21,11 +21,12 @@ func TestNewGraphML(t *testing.T) {
 func TestNewGraphMLWithAttributes(t *testing.T) {
 	description := "test"
 
-	attributes := make(map[string]interface{})
-	attributes["double"] = 10.2
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes := map[string]interface{}{
+		"double":  10.2,
+		"bool":    false,
+		"integer": 120,
+		"string":  "string data",
+	}
 
 	gml, err := NewGraphMLWithAttributes(description, attributes)
 	require.NoError(t, err)
@@ -95,8 +96,11 @@ func TestGraphML_Decode_emptyStringDefault(t *testing.T) {
 	require.NoError(t, err, "failed to decode")
 
 	// test results
-	attributes := make(map[string]interface{})
-	attributes["string-key"] = ""
+	attributes := map[string]interface{}{
+		"int-key":      1,
+		"string-key":   "",
+		"string-key-1": "test",
+	}
 
 	// check Graph element
 	//
@@ -133,11 +137,11 @@ func TestGraphML_Decode(t *testing.T) {
 	require.NoError(t, err, "failed to decode")
 
 	// test results
-	attributes := make(map[string]interface{})
-	attributes["double"] = 10.2
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes := map[string]interface{}{
+		"bool":    false,
+		"integer": 120,
+		"string":  "string data",
+	}
 
 	// check Graph element
 	//
@@ -149,10 +153,12 @@ func TestGraphML_Decode(t *testing.T) {
 	assert.Len(t, graph.edgesMap, 1, "wrong size of edges map")
 
 	// check attributes
+	attributes["double"] = 3.14
 	attrs, err := graph.GetAttributes()
 	require.NoError(t, err)
 	assert.Equal(t, attributes, attrs)
 
+	attributes["double"] = 10.2
 	// check Node elements
 	//
 	require.Len(t, graph.Nodes, 2, "wrong nodes number")
@@ -193,11 +199,13 @@ func TestGraphML_Encode(t *testing.T) {
 	_, err := gml.RegisterKey(KeyForAll, keyForAllName, "common double data-function", reflect.Float64, 10.2)
 	require.NoError(t, err, "failed to register key")
 
-	attributes := make(map[string]interface{})
-	attributes[keyForAllName] = NotAValue
-	attributes["attr_bool"] = false
-	attributes["attr_integer"] = 120
-	attributes["attr_string"] = "string data"
+	attributes := map[string]interface{}{
+		keyForAllName:  NotAValue,
+		"attr_bool":    false,
+		"attr_integer": 120,
+		"attr_string":  "string data",
+	}
+
 	// add graph
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
 	require.NoError(t, err, "failed to add graph")
@@ -230,11 +238,12 @@ func TestGraphML_AddGraph(t *testing.T) {
 	gml := NewGraphML("")
 
 	// test normal creation
-	attributes := make(map[string]interface{})
-	attributes["attr_double"] = 100.1
-	attributes["attr_bool"] = false
-	attributes["attr_integer"] = 120
-	attributes["attr_string"] = "string data"
+	attributes := map[string]interface{}{
+		"attr_double":  100.1,
+		"attr_bool":    false,
+		"attr_integer": 120,
+		"attr_string":  "string data",
+	}
 
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
 	require.NoError(t, err, "failed to add graph")
@@ -301,11 +310,12 @@ func TestGraphML_RegisterKeyDefaultValue(t *testing.T) {
 	require.NoError(t, err, "failed to register key: %s", commonKeyName)
 
 	// register graph and test number of keys
-	attributes := make(map[string]interface{})
-	attributes[commonKeyName] = NotAValue // empty attribute - default value will be used
-	attributes["attr_bool"] = false
-	attributes["attr_integer"] = 120
-	attributes["attr_string"] = "string data"
+	attributes := map[string]interface{}{
+		commonKeyName:  NotAValue, // empty attribute - default value will be used
+		"attr_bool":    false,
+		"attr_integer": 120,
+		"attr_string":  "string data",
+	}
 
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
 	require.NoError(t, err, "failed to add graph")
@@ -347,11 +357,12 @@ func TestGraphML_RegisterKeyForAll(t *testing.T) {
 	require.NoError(t, err, "failed to register key: %s", commonKeyName)
 
 	// register graph and test number of keys
-	attributes := make(map[string]interface{})
-	attributes[commonKeyName] = 100.1
-	attributes["attr_bool"] = false
-	attributes["attr_integer"] = 120
-	attributes["attr_string"] = "string data"
+	attributes := map[string]interface{}{
+		commonKeyName:  100.1,
+		"attr_bool":    false,
+		"attr_integer": 120,
+		"attr_string":  "string data",
+	}
 
 	graph, err := gml.AddGraph(description, EdgeDirectionDirected, attributes)
 	require.NoError(t, err, "failed to add graph")
@@ -408,11 +419,12 @@ func TestGraph_AddNode(t *testing.T) {
 	}
 
 	// add node
-	attributes := make(map[string]interface{})
-	attributes["double"] = 100.1
-	attributes["bool"] = false
-	attributes["integer"] = 120
-	attributes["string"] = "string data"
+	attributes := map[string]interface{}{
+		"attr_double":  100.1,
+		"attr_bool":    false,
+		"attr_integer": 120,
+		"attr_string":  "string data",
+	}
 
 	description = "test node"
 	node, err := gr.AddNode(attributes, description)
@@ -445,11 +457,12 @@ func TestNode_GetAttributes(t *testing.T) {
 	require.NoError(t, err, "failed to add graph")
 
 	// add node
-	attributes := make(map[string]interface{})
-	attributes["attr_double"] = 100.1
-	attributes["attr_bool"] = false
-	attributes["attr_integer"] = 120
-	attributes["attr_string"] = "string data"
+	attributes := map[string]interface{}{
+		"attr_double":  100.1,
+		"attr_bool":    false,
+		"attr_integer": 120,
+		"attr_string":  "string data",
+	}
 
 	description = "test node"
 	node, err := gr.AddNode(attributes, description)
@@ -475,11 +488,12 @@ func TestGraph_AddEdge(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add graph
-	attributes := make(map[string]interface{})
-	attributes["attr_double"] = 100.1
-	attributes["attr_bool"] = false
-	attributes["attr_integer"] = 120
-	attributes["attr_string"] = "string data"
+	attributes := map[string]interface{}{
+		"attr_double":  100.1,
+		"attr_bool":    false,
+		"attr_integer": 120,
+		"attr_string":  "string data",
+	}
 
 	description = "test edge"
 	edge, err := gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
@@ -522,11 +536,12 @@ func TestEdge_GetAttributes(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add graph
-	attributes := make(map[string]interface{})
-	attributes["attr_double"] = 100.1
-	attributes["attr_bool"] = false
-	attributes["attr_integer"] = 120
-	attributes["attr_string"] = "string data"
+	attributes := map[string]interface{}{
+		"attr_double":  100.1,
+		"attr_bool":    false,
+		"attr_integer": 120,
+		"attr_string":  "string data",
+	}
 
 	description = "test edge"
 	edge, err := gr.AddEdge(n1, n2, attributes, EdgeDirectionDefault, description)
