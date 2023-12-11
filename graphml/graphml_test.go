@@ -48,10 +48,11 @@ func TestGraphML_Decode_keyTypeDefault(t *testing.T) {
 	require.NoError(t, err, "failed to decode")
 
 	// test results
-	attributes := make(map[string]interface{})
-	attributes["integer-key"] = 10
-	attributes["test-key"] = "test data"
-	attributes["color"] = "yellow"
+	attributes := map[string]interface{}{
+		"integer-key": 10,
+		"test-key":    "test data",
+		"color":       "yellow",
+	}
 
 	// check Graph element
 	//

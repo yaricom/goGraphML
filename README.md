@@ -78,9 +78,9 @@ The new Graph can be added with associated attributes as following:
 
 ```GO
     attributes := map[string]interface{}{
-        "default_weight": 1.1, 
-        "acyclic": false, 
-        "max_depth": 10,
+        "default_weight": 1.1,
+        "acyclic":        false,
+        "max_depth":      10,
     }
 
     graph, err := gml.AddGraph("the graph", EdgeDirectionDirected, attributes)
@@ -98,9 +98,9 @@ The Node elements can be added to the Graph as following:
 
 ```GO
     attributes := map[string]interface{}{
-        "X": 0.1, 
-        "Y": 1.0, 
-        "NodeNeuronType": network.InputNeuron, 
+        "X":                  0.1,
+        "Y":                  1.0,
+        "NodeNeuronType":     network.InputNeuron,
         "NodeActivationType": network.NullActivation,
     }
 
@@ -118,8 +118,8 @@ The Edge elements can be added to the Graph as following:
 
 ```GO
     attributes := map[string]interface{}{
-        "weight": -1.1, 
-        "sourceId": 1, 
+        "weight":   -1.1,
+        "sourceId": 1,
         "targetId": 3,
     }
 
