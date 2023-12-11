@@ -7,6 +7,10 @@
     <key id="key1" for="node" attr.name="integer-key" attr.type="int">
         <default>10</default>
     </key>
+    <key id="key2" for="node" attr.name="color" attr.type="string">
+        <default>yellow</default>
+    </key>
+    <key id="key3" for="node" attr.name="int-no-default" attr.type="int"></key>
     <graph edgedefault="directed" parse.nodeids="canonical" parse.edgeids="canonical" parse.order="nodesfirst">
         <node id="n0">
             <desc>test node #1</desc>

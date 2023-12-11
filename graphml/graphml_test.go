@@ -50,6 +50,7 @@ func TestGraphML_Decode_keyTypeDefault(t *testing.T) {
 	attributes := make(map[string]interface{})
 	attributes["integer-key"] = 10
 	attributes["test-key"] = "test data"
+	attributes["color"] = "yellow"
 
 	// check Graph element
 	//
@@ -79,6 +80,10 @@ func TestGraphML_Decode_keyTypeDefault(t *testing.T) {
 	key = gml.GetKey("integer-key", KeyForNode)
 	require.NotNil(t, key, "key expected")
 	assert.Equal(t, key.KeyType, IntType)
+
+	key = gml.GetKey("color", KeyForNode)
+	require.NotNil(t, key, "key expected")
+	assert.Equal(t, key.KeyType, StringType)
 }
 
 func TestGraphML_Decode(t *testing.T) {

@@ -414,26 +414,26 @@ func (gr *Graph) GetEdge(sourceId, targetId string) *Edge {
 
 // GetAttributes return data attributes map associated with GraphML
 func (gml *GraphML) GetAttributes() (map[string]interface{}, error) {
-	return attributesForData(gml.Data, gml)
+	return attributesForData(gml.Data, KeyForGraphML, gml)
 }
 
 // GetAttributes return data attributes map associated with Graph
 func (gr *Graph) GetAttributes() (map[string]interface{}, error) {
-	return attributesForData(gr.Data, gr.parent)
+	return attributesForData(gr.Data, KeyForGraph, gr.parent)
 }
 
 // GetAttributes returns data attributes map associated with Node
 func (n *Node) GetAttributes() (map[string]interface{}, error) {
-	return attributesForData(n.Data, n.graph.parent)
+	return attributesForData(n.Data, KeyForNode, n.graph.parent)
 }
 
 // GetAttributes returns data attributes map associated with Edge
 func (e *Edge) GetAttributes() (map[string]interface{}, error) {
-	return attributesForData(e.Data, e.graph.parent)
+	return attributesForData(e.Data, KeyForEdge, e.graph.parent)
 }
 
 // builds attributes map for specified data array
-func attributesForData(data []*Data, gml *GraphML) (map[string]interface{}, error) {
+func attributesForData(data []*Data, target KeyForElement, gml *GraphML) (map[string]interface{}, error) {
 	attr := make(map[string]interface{})
 	for _, d := range data {
 		key, ok := gml.keysById[d.Key]
@@ -454,6 +454,19 @@ func attributesForData(data []*Data, gml *GraphML) (map[string]interface{}, erro
 			return nil, err
 		} else {
 			attr[key.Name] = value
+		}
+	}
+	// fill defaults for undefined keys
+	for _, k := range keysForElement(gml.Keys, target) {
+		if k.DefaultValue == "" && k.KeyType != StringType {
+			continue
+		}
+		if _, ok := attr[k.Name]; !ok {
+			val, err := valueByType(k.DefaultValue, k.KeyType, gml.keyTypeDefault)
+			if err != nil {
+				return nil, errors.New("could not parse default value for key id: " + k.ID)
+			}
+			attr[k.Name] = val
 		}
 	}
 	return attr, nil
@@ -615,4 +628,14 @@ func valueByType(val string, keyType DataType, keyTypeDefault DataType) (interfa
 		// try once more with default key type
 		return valueByType(val, keyTypeDefault, keyTypeDefault)
 	}
+}
+
+// keysForElement returns all the keys from allKeys that apply to a certain element
+func keysForElement(allKeys []*Key, target KeyForElement) (keys []*Key) {
+	for _, k := range allKeys {
+		if k.Target == target || k.Target == KeyForAll {
+			keys = append(keys, k)
+		}
+	}
+	return keys
 }
