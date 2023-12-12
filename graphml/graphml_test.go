@@ -234,6 +234,23 @@ func TestGraphML_Encode(t *testing.T) {
 	assert.Equal(t, resString, outBuf.String())
 }
 
+func TestGraphML_Encode_EmptyFor(t *testing.T) {
+	// build GraphML
+	gml := NewGraphML("TestGraphML_Encode_EmptyFor")
+
+	// register common data-function for all elements
+	keyForAllName := "keyForAll"
+	_, err := gml.RegisterKey("", keyForAllName, "", reflect.String, nil)
+	require.NoError(t, err, "failed to register key")
+
+	// encode
+	outBuf := &bytes.Buffer{}
+	err = gml.Encode(outBuf, false)
+
+	// check results
+	assert.NotContains(t, outBuf.String(), "for=\"\"", "a key with an empty target should omit the for attribute")
+}
+
 func TestGraphML_AddGraph(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
