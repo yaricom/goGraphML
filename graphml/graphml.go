@@ -100,7 +100,7 @@ type Key struct {
 	// The ID of this key element (in form dX, where X denotes the number of occurrences of the key element before the current one)
 	ID string `xml:"id,attr"`
 	// The name of element this key is for (graphml|graph|node|edge|hyperedge|port|endpoint|all)
-	Target KeyForElement `xml:"for,attr"`
+	Target KeyForElement `xml:"for,attr,omitempty"`
 	// The name of data-function associated with this key
 	Name string `xml:"attr.name,attr"`
 	// The type of input to the data-function associated with this key. (Allowed values: boolean, int, long, float, double, string)
