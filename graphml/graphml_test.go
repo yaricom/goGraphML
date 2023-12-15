@@ -75,6 +75,7 @@ func TestGraphML_Decode_keyTargetDefault(t *testing.T) {
 	//
 	key := gml.GetKey("test-key", KeyForAll)
 	require.NotNil(t, key, "key expected")
+	assert.Equal(t, KeyForAll, key.Target)
 }
 
 func TestGraphML_Decode_keyTypeDefault(t *testing.T) {
