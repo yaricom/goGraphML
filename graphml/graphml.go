@@ -241,6 +241,9 @@ func (gml *GraphML) Decode(r io.Reader) error {
 		if key.KeyType == "" {
 			key.KeyType = gml.keyTypeDefault
 		}
+		if key.Target == "" {
+			key.Target = KeyForAll
+		}
 		gml.keysByIdentifier[keyIdentifier(key.Name, key.Target)] = key
 		gml.keysById[key.ID] = key
 	}

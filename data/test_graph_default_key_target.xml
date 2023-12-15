@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+    <key id="key0" attr.name="test-key">
+        <desc>Messages related to this host</desc>
+        <default />
+    </key>
+    <graph edgedefault="directed" parse.nodeids="canonical" parse.edgeids="canonical" parse.order="nodesfirst">
+        <node id="n0">
+            <desc>test node #1</desc>
+            <data key="key0">test data</data>
+        </node>
+    </graph>
+</graphml>
