@@ -144,6 +144,8 @@ type Graph struct {
 
 	// The parent GraphML
 	parent *GraphML
+	// The map of nodes, indexed by their ID
+	nodesMap map[string]*Node
 	// The map of edges by connected nodes
 	edgesMap map[string]*Edge
 	// The default edge direction flag
@@ -261,8 +263,10 @@ func (gml *GraphML) Decode(r io.Reader) error {
 			gr.edgesMap[edgeIdentifier(e.Source, e.Target)] = e
 			e.graph = gr
 		}
-		// properly link nodes to their graph
+		// populate nodes map and link them to their graph
+		gr.nodesMap = make(map[string]*Node)
 		for _, n := range gr.Nodes {
+			gr.nodesMap[n.ID] = n
 			n.graph = gr
 		}
 	}
@@ -333,6 +337,7 @@ func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attr
 		Nodes:          make([]*Node, 0),
 		Edges:          make([]*Edge, 0),
 		parent:         gml,
+		nodesMap:       make(map[string]*Node),
 		edgesMap:       make(map[string]*Edge),
 		edgesDirection: edgeDefault,
 	}
@@ -362,7 +367,16 @@ func (gr *Graph) AddNode(attributes map[string]interface{}, description string) 
 	// add node
 	node.graph = gr
 	gr.Nodes = append(gr.Nodes, node)
+	gr.nodesMap[node.ID] = node
 	return node, nil
+}
+
+// GetNode method to test if node with given id exists. If node exists it will be returned, otherwise nil returned
+func (gr *Graph) GetNode(id string) *Node {
+	if node, ok := gr.nodesMap[id]; ok {
+		return node
+	}
+	return nil
 }
 
 // AddEdge adds edge to the graph which connects two its nodes with provided additional attributes and description
@@ -413,6 +427,16 @@ func (gr *Graph) GetEdge(sourceId, targetId string) *Edge {
 		return edge
 	}
 	return nil
+}
+
+// SourceNode method to get the source node struct. If it exists it will be returned, otherwise nil returned
+func (e *Edge) SourceNode() *Node {
+	return e.graph.GetNode(e.Source)
+}
+
+// TargetNode method to get the target node struct. If it exists it will be returned, otherwise nil returned
+func (e *Edge) TargetNode() *Node {
+	return e.graph.GetNode(e.Target)
 }
 
 // GetAttributes return data attributes map associated with GraphML

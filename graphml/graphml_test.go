@@ -355,6 +355,47 @@ func TestGraph_GetEdge(t *testing.T) {
 	assert.Nil(t, edge, "edge is not expected")
 }
 
+func TestGraph_GetNode(t *testing.T) {
+	description := "test graph"
+	gml := NewGraphML("")
+
+	graph, err := gml.AddGraph(description, EdgeDirectionDirected, nil)
+	require.NoError(t, err, "failed to add graph")
+	require.NotNil(t, graph)
+
+	// add nodes
+	description = "test node #1"
+	n1, err := graph.AddNode(nil, description)
+	require.NoError(t, err, "failed to add node: %s", description)
+
+	description = "test node #2"
+	n2, err := graph.AddNode(nil, description)
+	require.NoError(t, err, "failed to add node: %s", description)
+
+	// add edge
+	description = "test edge"
+	e1, err := graph.AddEdge(n1, n2, nil, EdgeDirectionDefault, description)
+	require.NoError(t, err, "failed to add edge: %s", description)
+
+	// check existing node
+	node := graph.GetNode(n1.ID)
+	assert.NotNil(t, node, "node is expected")
+	assert.Same(t, n1, node, "node should be the same as n1")
+
+	// check non-existing node
+	node = graph.GetNode("n42")
+	assert.Nil(t, node, "node is not expected")
+
+	// check edge nodes
+	node = e1.SourceNode()
+	assert.NotNil(t, node, "node is expected")
+	assert.Same(t, n1, node, "node should be the same as n1")
+
+	node = e1.TargetNode()
+	assert.NotNil(t, node, "node is expected")
+	assert.Same(t, n2, node, "node should be the same as n2")
+}
+
 // tests if default value of common key will be used for empty attributes
 func TestGraphML_RegisterKeyDefaultValue(t *testing.T) {
 	description := "graphml"
