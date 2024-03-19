@@ -643,6 +643,62 @@ func TestGraph_RemoveKey(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestGraph_RemoveKeyByName(t *testing.T) {
+	gmlattrs := map[string]interface{}{
+		"k4": 8000,
+	}
+	gml, err := NewGraphMLWithAttributes("", gmlattrs)
+	require.NoError(t, err, "failed to create GraphML")
+	k1name := "k1"
+	k1target := KeyForAll
+	_, err = gml.RegisterKey(KeyForAll, "k1", "", reflect.Int, 0)
+	require.NoError(t, err, "failed to register key: %s", k1name)
+
+	grattrs := map[string]interface{}{
+		"k1": 999,
+	}
+	gr, err := gml.AddGraph("test graph", EdgeDirectionDirected, grattrs)
+	require.NoError(t, err, "failed to add graph")
+
+	// add elements
+	n1attrs := map[string]interface{}{
+		"k1": 100,
+		"k2": 10,
+	}
+	n1, err := gr.AddNode(n1attrs, "test node 1")
+	require.NoError(t, err, "failed to add node 1")
+	n2attrs := map[string]interface{}{
+		"k1": 200,
+		"k2": 20,
+	}
+	n2, err := gr.AddNode(n2attrs, "test node 2")
+	require.NoError(t, err, "failed to add node 2")
+	e1attrs := map[string]interface{}{
+		"k1": 300,
+		"k3": 3,
+	}
+	e1, err := gr.AddEdge(n1, n2, e1attrs, EdgeDirectionDefault, "test edge")
+	require.NoError(t, err, "failed to add edge")
+
+	// try removing k1
+	err = gml.RemoveKeyByName(k1target, k1name)
+	require.NoError(t, err, "failed to remove key 1")
+	key := gml.GetKey(k1name, k1target)
+	assert.Nil(t, key)
+	attrs, _ := gr.GetAttributes()
+	assert.NotContains(t, attrs, "k1")
+	attrs, _ = n1.GetAttributes()
+	assert.NotContains(t, attrs, "k1")
+	attrs, _ = n2.GetAttributes()
+	assert.NotContains(t, attrs, "k1")
+	attrs, _ = e1.GetAttributes()
+	assert.NotContains(t, attrs, "k1")
+
+	// try removing not existing key
+	err = gml.RemoveKeyByName(KeyForAll, "not existing")
+	assert.Error(t, err, "key no found")
+}
+
 func TestNode_GetAttributes(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")

@@ -304,6 +304,14 @@ func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, 
 	return key, nil
 }
 
+func (gml *GraphML) RemoveKeyByName(target KeyForElement, name string) error {
+	if key := gml.GetKey(name, target); key == nil {
+		return errors.New("key no found")
+	} else {
+		return gml.RemoveKey(key)
+	}
+}
+
 // RemoveKey removes a key from the GraphML and all the associated attributes
 // in all the target elements.
 func (gml *GraphML) RemoveKey(key *Key) error {
