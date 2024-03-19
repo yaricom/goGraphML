@@ -304,6 +304,48 @@ func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, 
 	return key, nil
 }
 
+// RemoveKey removes a key from the GraphML and all the associated attributes
+// in all the target elements.
+func (gml *GraphML) RemoveKey(key *Key) error {
+	var found bool
+	var i int
+	var k *Key
+	for i, k = range gml.Keys {
+		if key == k {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return errors.New("key not found")
+	}
+	gml.Keys = append(gml.Keys[:i], gml.Keys[i+1:]...)
+	delete(gml.keysById, key.ID)
+	delete(gml.keysByIdentifier, keyIdentifier(key.Name, key.Target))
+	if key.Target == KeyForAll || key.Target == KeyForGraphML {
+		gml.RemoveAttribute(key.ID)
+	}
+	if key.Target == KeyForGraphML {
+		return nil
+	}
+	for _, graph := range gml.Graphs {
+		if key.Target == KeyForAll || key.Target == KeyForGraph {
+			graph.RemoveAttribute(key.ID)
+		}
+		if key.Target == KeyForAll || key.Target == KeyForNode {
+			for _, node := range graph.Nodes {
+				node.RemoveAttribute(key.ID)
+			}
+		}
+		if key.Target == KeyForAll || key.Target == KeyForEdge {
+			for _, edge := range graph.Edges {
+				edge.RemoveAttribute(key.ID)
+			}
+		}
+	}
+	return nil
+}
+
 // GetKey looks for registered keys with specified name for a given target element. If specific target has no
 // registered key then common target (KeyForAll) will be checked next. Returns Key (either specific or common) or nil.
 func (gml *GraphML) GetKey(name string, target KeyForElement) *Key {
@@ -437,6 +479,43 @@ func (e *Edge) SourceNode() *Node {
 // TargetNode method to get the target node struct. If it exists it will be returned, otherwise nil returned
 func (e *Edge) TargetNode() *Node {
 	return e.graph.GetNode(e.Target)
+}
+
+// RemoveAttribute removes the attribute associated with the given key ID from
+// the data of this GraphML.
+func (gml *GraphML) RemoveAttribute(key string) {
+	gml.Data = removeAttributeFromData(gml.Data, key)
+}
+
+// RemoveAttribute removes the attribute associated with the given key ID from
+// the data of this graph.
+func (gr *Graph) RemoveAttribute(key string) {
+	gr.Data = removeAttributeFromData(gr.Data, key)
+}
+
+// RemoveAttribute removes the attribute associated with the given key ID from
+// the data of this node.
+func (n *Node) RemoveAttribute(key string) {
+	n.Data = removeAttributeFromData(n.Data, key)
+}
+
+// RemoveAttribute removes the attribute associated with the given key ID from
+// the data of this edge.
+func (e *Edge) RemoveAttribute(key string) {
+	e.Data = removeAttributeFromData(e.Data, key)
+}
+
+// removeAttributeFromData removes the attribute associated with the given key ID from
+// the given data.
+func removeAttributeFromData(data []*Data, key string) []*Data {
+	var i int
+	var d *Data
+	for i, d = range data {
+		if d.Key == key {
+			return append(data[:i], data[i+1:]...)
+		}
+	}
+	return data
 }
 
 // GetAttributes return data attributes map associated with GraphML

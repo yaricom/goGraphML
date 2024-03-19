@@ -548,6 +548,76 @@ func TestGraph_AddNode(t *testing.T) {
 	assert.Equal(t, attributes, attrs)
 }
 
+func TestGraph_RemoveKey(t *testing.T) {
+	gml := NewGraphML("")
+	k1name := "k1"
+	k1, err := gml.RegisterKey(KeyForAll, k1name, "", reflect.Int, 0)
+	require.NoError(t, err, "failed to register key: %s", k1name)
+	k2name := "k2"
+	k2, err := gml.RegisterKey(KeyForNode, k2name, "", reflect.Int, 0)
+	require.NoError(t, err, "failed to register key: %s", k2name)
+	k3name := "k3"
+	k3, err := gml.RegisterKey(KeyForEdge, k3name, "", reflect.Int, 0)
+	require.NoError(t, err, "failed to register key: %s", k3name)
+	require.Len(t, gml.Keys, 3)
+
+	grattrs := map[string]interface{}{
+		"k1": 999,
+	}
+	gr, err := gml.AddGraph("test graph", EdgeDirectionDirected, grattrs)
+	require.NoError(t, err, "failed to add graph")
+
+	// add elements
+	n1attrs := map[string]interface{}{
+		"k1": 100,
+		"k2": 10,
+	}
+	n1, err := gr.AddNode(n1attrs, "test node 1")
+	require.NoError(t, err, "failed to add node 1")
+	n2attrs := map[string]interface{}{
+		"k1": 200,
+		"k2": 20,
+	}
+	n2, err := gr.AddNode(n2attrs, "test node 2")
+	require.NoError(t, err, "failed to add node 2")
+	e1attrs := map[string]interface{}{
+		"k1": 300,
+		"k3": 3,
+	}
+	e1, err := gr.AddEdge(n1, n2, e1attrs, EdgeDirectionDefault, "test edge")
+	require.NoError(t, err, "failed to add edge")
+
+	// try removing k1
+	err = gml.RemoveKey(k1)
+	require.NoError(t, err, "failed to remove key 1")
+	attrs, _ := gr.GetAttributes()
+	assert.NotContains(t, attrs, "k1")
+	attrs, _ = n1.GetAttributes()
+	assert.NotContains(t, attrs, "k1")
+	attrs, _ = n2.GetAttributes()
+	assert.NotContains(t, attrs, "k1")
+	attrs, _ = e1.GetAttributes()
+	assert.NotContains(t, attrs, "k1")
+
+	// try removing k2
+	err = gml.RemoveKey(k2)
+	require.NoError(t, err, "failed to remove key 2")
+	attrs, _ = n1.GetAttributes()
+	assert.NotContains(t, attrs, "k2")
+	attrs, _ = n2.GetAttributes()
+	assert.NotContains(t, attrs, "k2")
+
+	// try removing k3
+	err = gml.RemoveKey(k3)
+	require.NoError(t, err, "failed to remove key 3")
+	attrs, _ = e1.GetAttributes()
+	assert.NotContains(t, attrs, "k3")
+
+	// try removing k1 once again
+	err = gml.RemoveKey(k1)
+	assert.Error(t, err)
+}
+
 func TestNode_GetAttributes(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
