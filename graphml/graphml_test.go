@@ -549,17 +549,24 @@ func TestGraph_AddNode(t *testing.T) {
 }
 
 func TestGraph_RemoveKey(t *testing.T) {
-	gml := NewGraphML("")
+	gmlattrs := map[string]interface{}{
+		"k4": 8000,
+	}
+	gml, err := NewGraphMLWithAttributes("", gmlattrs)
+	require.NoError(t, err, "failed to create GraphML")
 	k1name := "k1"
-	k1, err := gml.RegisterKey(KeyForAll, k1name, "", reflect.Int, 0)
+	k1target := KeyForAll
+	k1, err := gml.RegisterKey(k1target, k1name, "", reflect.Int, 0)
 	require.NoError(t, err, "failed to register key: %s", k1name)
 	k2name := "k2"
-	k2, err := gml.RegisterKey(KeyForNode, k2name, "", reflect.Int, 0)
+	k2target := KeyForNode
+	k2, err := gml.RegisterKey(k2target, k2name, "", reflect.Int, 0)
 	require.NoError(t, err, "failed to register key: %s", k2name)
 	k3name := "k3"
-	k3, err := gml.RegisterKey(KeyForEdge, k3name, "", reflect.Int, 0)
+	k3target := KeyForEdge
+	k3, err := gml.RegisterKey(k3target, k3name, "", reflect.Int, 0)
 	require.NoError(t, err, "failed to register key: %s", k3name)
-	require.Len(t, gml.Keys, 3)
+	require.Len(t, gml.Keys, 4)
 
 	grattrs := map[string]interface{}{
 		"k1": 999,
@@ -590,6 +597,8 @@ func TestGraph_RemoveKey(t *testing.T) {
 	// try removing k1
 	err = gml.RemoveKey(k1)
 	require.NoError(t, err, "failed to remove key 1")
+	key := gml.GetKey(k1name, k1target)
+	assert.Nil(t, key)
 	attrs, _ := gr.GetAttributes()
 	assert.NotContains(t, attrs, "k1")
 	attrs, _ = n1.GetAttributes()
@@ -602,6 +611,8 @@ func TestGraph_RemoveKey(t *testing.T) {
 	// try removing k2
 	err = gml.RemoveKey(k2)
 	require.NoError(t, err, "failed to remove key 2")
+	key = gml.GetKey(k2name, k2target)
+	assert.Nil(t, key)
 	attrs, _ = n1.GetAttributes()
 	assert.NotContains(t, attrs, "k2")
 	attrs, _ = n2.GetAttributes()
@@ -610,8 +621,22 @@ func TestGraph_RemoveKey(t *testing.T) {
 	// try removing k3
 	err = gml.RemoveKey(k3)
 	require.NoError(t, err, "failed to remove key 3")
+	key = gml.GetKey(k3name, k3target)
+	assert.Nil(t, key)
 	attrs, _ = e1.GetAttributes()
 	assert.NotContains(t, attrs, "k3")
+
+	// try removing k4
+	k4name := "k4"
+	k4target := KeyForGraphML
+	k4 := gml.GetKey(k4name, k4target)
+	assert.NotNil(t, k4)
+	err = gml.RemoveKey(k4)
+	require.NoError(t, err, "failed to remove key 4")
+	key = gml.GetKey(k4name, k4target)
+	assert.Nil(t, key)
+	attrs, _ = gml.GetAttributes()
+	assert.NotContains(t, attrs, "k4")
 
 	// try removing k1 once again
 	err = gml.RemoveKey(k1)
