@@ -699,6 +699,83 @@ func TestGraph_RemoveKeyByName(t *testing.T) {
 	assert.Error(t, err, "key no found")
 }
 
+func TestGraph_SetAttribute(t *testing.T) {
+	gmlattrs := map[string]interface{}{
+		"k4": 8000,
+	}
+	gml, err := NewGraphMLWithAttributes("", gmlattrs)
+	require.NoError(t, err, "failed to create GraphML")
+	k1name := "k1"
+	_, err = gml.RegisterKey(KeyForAll, "k1", "", reflect.Int, nil)
+	require.NoError(t, err, "failed to register key: %s", k1name)
+	k2name := "k2"
+	_, err = gml.RegisterKey(KeyForNode, k2name, "", reflect.Int, 0)
+	require.NoError(t, err, "failed to register key: %s", k2name)
+
+	grattrs := map[string]interface{}{
+		"k1": 999,
+	}
+	gr, err := gml.AddGraph("test graph", EdgeDirectionDirected, grattrs)
+	require.NoError(t, err, "failed to add graph")
+
+	// add elements
+	n1attrs := map[string]interface{}{
+		"k1": 100,
+		"k2": 10,
+	}
+	n1, err := gr.AddNode(n1attrs, "test node 1")
+	require.NoError(t, err, "failed to add node 1")
+	n2, err := gr.AddNode(map[string]interface{}{}, "test node 2")
+	require.NoError(t, err, "failed to add node 2")
+	e1, err := gr.AddEdge(n1, n2, map[string]interface{}{}, EdgeDirectionDefault, "test edge")
+	require.NoError(t, err, "failed to add edge")
+	require.Len(t, gml.Keys, 3)
+
+	// try setting registered attribute, non existing for GraphML
+	err = gml.SetAttribute(k1name, 42)
+	require.NoError(t, err, "failed to set key k1")
+	attrs, _ := gml.GetAttributes()
+	assert.Equal(t, map[string]interface{}{
+		"k4": 8000,
+		"k1": 42,
+	}, attrs)
+	require.Len(t, gml.Keys, 3)
+
+	// try setting invalid attribute
+	err = gml.SetAttribute("invalid", make(chan bool))
+	require.Error(t, err)
+	require.Len(t, gml.Keys, 3)
+
+	// try setting non existing attribute for Graph
+	err = gr.SetAttribute("test", 120)
+	require.NoError(t, err, "failed to set key test")
+	attrs, _ = gr.GetAttributes()
+	assert.Equal(t, map[string]interface{}{
+		"k1": 999,
+		"test": 120,
+	}, attrs)
+	require.Len(t, gml.Keys, 4)
+
+	// try setting existing attribute for Node
+	err = n1.SetAttribute(k2name, 20)
+	require.NoError(t, err, "failed to set key k2")
+	attrs, _ = n1.GetAttributes()
+	assert.Equal(t, map[string]interface{}{
+		"k1": 100,
+		"k2": 20,
+	}, attrs)
+	require.Len(t, gml.Keys, 4)
+
+	// try setting attribute non existing for Edge with no attributes
+	err = e1.SetAttribute("test", 11)
+	require.NoError(t, err, "failed to set key test")
+	attrs, _ = e1.GetAttributes()
+	assert.Equal(t, map[string]interface{}{
+		"test": 11,
+	}, attrs)
+	require.Len(t, gml.Keys, 5)
+}
+
 func TestNode_GetAttributes(t *testing.T) {
 	description := "test graph"
 	gml := NewGraphML("")
