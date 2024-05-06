@@ -700,28 +700,29 @@ func TestGraph_RemoveKeyByName(t *testing.T) {
 }
 
 func TestGraph_SetAttribute(t *testing.T) {
+	attrNameKeyForGraphML := "key-for-graph-ml"
 	gmlattrs := map[string]interface{}{
-		"k4": 8000,
+		attrNameKeyForGraphML: 8000,
 	}
 	gml, err := NewGraphMLWithAttributes("", gmlattrs)
 	require.NoError(t, err, "failed to create GraphML")
-	k1name := "k1"
-	_, err = gml.RegisterKey(KeyForAll, "k1", "", reflect.Int, nil)
-	require.NoError(t, err, "failed to register key: %s", k1name)
-	k2name := "k2"
-	_, err = gml.RegisterKey(KeyForNode, k2name, "", reflect.Int, 0)
-	require.NoError(t, err, "failed to register key: %s", k2name)
+	attrNameKeyForAll := "key-for-all"
+	_, err = gml.RegisterKey(KeyForAll, attrNameKeyForAll, "", reflect.Int, nil)
+	require.NoError(t, err, "failed to register key: %s", attrNameKeyForAll)
+	attrNameKeyForNode := "key-for-node"
+	_, err = gml.RegisterKey(KeyForNode, attrNameKeyForNode, "", reflect.Int, 0)
+	require.NoError(t, err, "failed to register key: %s", attrNameKeyForNode)
 
 	grattrs := map[string]interface{}{
-		"k1": 999,
+		attrNameKeyForAll: 999,
 	}
 	gr, err := gml.AddGraph("test graph", EdgeDirectionDirected, grattrs)
 	require.NoError(t, err, "failed to add graph")
 
 	// add elements
 	n1attrs := map[string]interface{}{
-		"k1": 100,
-		"k2": 10,
+		attrNameKeyForAll:  100,
+		attrNameKeyForNode: 10,
 	}
 	n1, err := gr.AddNode(n1attrs, "test node 1")
 	require.NoError(t, err, "failed to add node 1")
@@ -731,48 +732,65 @@ func TestGraph_SetAttribute(t *testing.T) {
 	require.NoError(t, err, "failed to add edge")
 	require.Len(t, gml.Keys, 3)
 
-	// try setting registered attribute, non existing for GraphML
-	err = gml.SetAttribute(k1name, 42)
-	require.NoError(t, err, "failed to set key k1")
+	// try setting registered attribute, non-existing for GraphML
+	err = gml.SetAttribute(attrNameKeyForAll, 42)
+	require.NoError(t, err, "failed to set key %s", attrNameKeyForAll)
 	attrs, _ := gml.GetAttributes()
 	assert.Equal(t, map[string]interface{}{
-		"k4": 8000,
-		"k1": 42,
+		attrNameKeyForGraphML: 8000,
+		attrNameKeyForAll:     42,
 	}, attrs)
 	require.Len(t, gml.Keys, 3)
 
-	// try setting invalid attribute
+	// try setting invalid gml attribute
 	err = gml.SetAttribute("invalid", make(chan bool))
 	require.Error(t, err)
 	require.Len(t, gml.Keys, 3)
 
-	// try setting non existing attribute for Graph
-	err = gr.SetAttribute("test", 120)
-	require.NoError(t, err, "failed to set key test")
+	// try setting non-existing attribute for Graph
+	attrNameKeyForGraph := "key-for-graph"
+	err = gr.SetAttribute(attrNameKeyForGraph, 120)
+	require.NoError(t, err, "failed to set key %s", attrNameKeyForGraph)
 	attrs, _ = gr.GetAttributes()
 	assert.Equal(t, map[string]interface{}{
-		"k1": 999,
-		"test": 120,
+		attrNameKeyForAll:   999,
+		attrNameKeyForGraph: 120,
 	}, attrs)
+	require.Len(t, gml.Keys, 4)
+
+	// try setting invalid graph attribute
+	err = gr.SetAttribute("invalid", make(chan bool))
+	require.Error(t, err)
 	require.Len(t, gml.Keys, 4)
 
 	// try setting existing attribute for Node
-	err = n1.SetAttribute(k2name, 20)
-	require.NoError(t, err, "failed to set key k2")
+	err = n1.SetAttribute(attrNameKeyForNode, 20)
+	require.NoError(t, err, "failed to set key %s", attrNameKeyForNode)
 	attrs, _ = n1.GetAttributes()
 	assert.Equal(t, map[string]interface{}{
-		"k1": 100,
-		"k2": 20,
+		attrNameKeyForAll:  100,
+		attrNameKeyForNode: 20,
 	}, attrs)
 	require.Len(t, gml.Keys, 4)
 
-	// try setting attribute non existing for Edge with no attributes
-	err = e1.SetAttribute("test", 11)
-	require.NoError(t, err, "failed to set key test")
+	// try setting invalid node attribute
+	err = n1.SetAttribute("invalid", make(chan bool))
+	require.Error(t, err)
+	require.Len(t, gml.Keys, 4)
+
+	// try setting attribute non-existing for Edge with no attributes
+	attrNameKeyForEdge := "key-for-edge"
+	err = e1.SetAttribute(attrNameKeyForEdge, 11)
+	require.NoError(t, err, "failed to set key %s", attrNameKeyForEdge)
 	attrs, _ = e1.GetAttributes()
 	assert.Equal(t, map[string]interface{}{
-		"test": 11,
+		attrNameKeyForEdge: 11,
 	}, attrs)
+	require.Len(t, gml.Keys, 5)
+
+	// try setting invalid edge attribute
+	err = e1.SetAttribute("invalid", make(chan bool))
+	require.Error(t, err)
 	require.Len(t, gml.Keys, 5)
 }
 
