@@ -526,6 +526,50 @@ func removeAttributeFromData(data []*Data, key string) []*Data {
 	return data
 }
 
+// SetAttribute sets the value of the attribute associated with the given key ID
+// in the data of this GraphML.
+func (gml *GraphML) SetAttribute(key string, val interface{}) (err error) {
+	gml.Data, err = gml.setAttributeForData(gml.Data, KeyForGraphML, key, val)
+	return
+}
+
+// SetAttribute sets the value of the attribute associated with the given key ID
+// in the data of this graph.
+func (gr *Graph) SetAttribute(key string, val interface{}) (err error) {
+	gr.Data, err = gr.parent.setAttributeForData(gr.Data, KeyForGraph, key, val)
+	return
+}
+
+// SetAttribute sets the value of the attribute associated with the given key ID
+// in the data of this node.
+func (n *Node) SetAttribute(key string, val interface{}) (err error) {
+	n.Data, err = n.graph.parent.setAttributeForData(n.Data, KeyForNode, key, val)
+	return
+}
+
+// SetAttribute sets the value of the attribute associated with the given key ID
+// in the data of this edge.
+func (e *Edge) SetAttribute(key string, val interface{}) (err error) {
+	e.Data, err = e.graph.parent.setAttributeForData(e.Data, KeyForEdge, key, val)
+	return
+}
+
+// setAttributeForData sets the value of the attribute associated with
+// the given key ID in the given data.
+func (gml *GraphML) setAttributeForData(data []*Data, target KeyForElement, key string, val interface{}) ([]*Data, error) {
+	newData, err := gml.createDataAttribute(val, key, target)
+	if err != nil {
+		return data, err
+	}
+	for i, d := range data {
+		if d.Key == newData.Key {
+			data[i] = newData
+			return data, nil
+		}
+	}
+	return append(data, newData), nil
+}
+
 // GetAttributes return data attributes map associated with GraphML
 func (gml *GraphML) GetAttributes() (map[string]interface{}, error) {
 	return attributesForData(gml.Data, KeyForGraphML, gml)
@@ -597,7 +641,7 @@ func (gml *GraphML) addKey(key *Key) {
 // Creates data-functions from given attributes and appends definitions of created functions to the provided data list.
 func (gml *GraphML) createDataAttributes(attributes map[string]interface{}, target KeyForElement) (data []*Data, err error) {
 	// make sure that attributes are sorted in predictable order
-	names := make([]string, 0)
+	names := make([]string, 0, len(attributes))
 	for key := range attributes {
 		names = append(names, key)
 	}
@@ -606,16 +650,8 @@ func (gml *GraphML) createDataAttributes(attributes map[string]interface{}, targ
 	data = make([]*Data, len(attributes))
 	count := 0
 	for _, key := range names {
-		keyFunc := gml.GetKey(key, target)
 		val := attributes[key]
-		if keyFunc == nil {
-			// register new Key
-			if keyFunc, err = gml.RegisterKey(target, key, "", reflect.TypeOf(val).Kind(), nil); err != nil {
-				// failed
-				return nil, err
-			}
-		}
-		if d, err := createDataWithKey(val, keyFunc); err != nil {
+		if d, err := gml.createDataAttribute(val, key, target); err != nil {
 			// failed
 			return nil, err
 		} else {
@@ -624,6 +660,20 @@ func (gml *GraphML) createDataAttributes(attributes map[string]interface{}, targ
 		count++
 	}
 	return data, nil
+}
+
+// createDataAttribute creates a single data object with given value, key name and target.
+// If there is no key with this name and target, a new one is registered.
+func (gml *GraphML) createDataAttribute(value interface{}, key string, target KeyForElement) (data *Data, err error) {
+	keyFunc := gml.GetKey(key, target)
+	if keyFunc == nil {
+		// register new Key
+		if keyFunc, err = gml.RegisterKey(target, key, "", reflect.TypeOf(value).Kind(), nil); err != nil {
+			// failed
+			return nil, err
+		}
+	}
+	return createDataWithKey(value, keyFunc)
 }
 
 // Creates data object with specified name, value and for provided Key
