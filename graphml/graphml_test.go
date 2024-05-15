@@ -941,3 +941,33 @@ func TestGraphML_stringValueIfSupported(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, testString, res)
 }
+
+func TestGraphML_1Indexed(t *testing.T) {
+	graphFile, err := os.Open("../data/test_graph_1_indexed.xml")
+	require.NoError(t, err, "failed to open file")
+	// decode
+	gml := NewGraphML("")
+	err = gml.Decode(graphFile)
+	require.NoError(t, err, "failed to decode")
+
+	nilAttrs := map[string]interface{}{}
+
+	graph, err := gml.AddGraph("test graph", EdgeDirectionDirected, nilAttrs)
+	require.NoError(t, err, "failed to add graph")
+	assert.Equal(t, "g2", graph.ID)
+
+	key, err := gml.RegisterKey(KeyForAll, "test", "test key", reflect.String, nil)
+	require.NoError(t, err, "failed to add key")
+	assert.Equal(t, "d2", key.ID)
+
+	graph1 := gml.Graphs[0]
+
+	node3, err := graph1.AddNode(nilAttrs, "test node")
+	require.NoError(t, err, "failed to add node")
+	assert.Equal(t, "n3", node3.ID)
+
+	node1 := graph1.GetNode("n1")
+	edge, err := graph1.AddEdge(node1, node3, nilAttrs, EdgeDirectionDefault, "test edge")
+	require.NoError(t, err, "failed to add edge")
+	assert.Equal(t, "e2", edge.ID)
+}

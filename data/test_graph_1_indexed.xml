@@ -1,0 +1,23 @@
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+    <desc>TestGraphML_Encode</desc>
+    <key id="d1" for="all" attr.name="double" attr.type="double">
+        <desc>common double data-function</desc>
+        <default>10.2</default>
+    </key>
+    <graph id="g1" edgedefault="directed">
+        <desc>test graph</desc>
+        <node id="n1">
+            <desc>test node #1</desc>
+            <data key="d1"/>
+        </node>
+        <node id="n2">
+            <desc>test node #2</desc>
+        </node>
+        <edge id="e1" source="n1" target="n2">
+            <desc>test edge</desc>
+        </edge>
+        <data key="d1">3.14</data>
+    </graph>
+</graphml>

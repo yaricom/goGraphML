@@ -280,8 +280,13 @@ func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, 
 		return nil, errors.New(fmt.Sprintf("key with given name already registered: %s", name))
 	}
 	count := len(gml.Keys)
+	var id string
+	for found := true; found; _, found = gml.keysById[id] {
+		id = fmt.Sprintf("d%d", count)
+		count++
+	}
 	key = &Key{
-		ID:          fmt.Sprintf("d%d", count),
+		ID:          id,
 		Target:      target,
 		Name:        name,
 		Description: description,
@@ -380,8 +385,20 @@ func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attr
 		return nil, errors.New("default edge direction must be provided")
 	}
 
+	var id string
+	for found := true; found; {
+		id = fmt.Sprintf("g%d", count)
+		found = false
+		for _, g := range gml.Graphs {
+			if g.ID == id {
+				found = true
+				count++
+				break
+			}
+		}
+	}
 	graph = &Graph{
-		ID:             fmt.Sprintf("g%d", count),
+		ID:             id,
 		EdgeDefault:    edgeDirection,
 		Description:    description,
 		Nodes:          make([]*Node, 0),
@@ -404,8 +421,13 @@ func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attr
 // AddNode adds node to the graph with provided additional attributes and description
 func (gr *Graph) AddNode(attributes map[string]interface{}, description string) (node *Node, err error) {
 	count := len(gr.Nodes)
+	var id string
+	for found := true; found; _, found = gr.nodesMap[id] {
+		id = fmt.Sprintf("n%d", count)
+		count++
+	}
 	node = &Node{
-		ID:          fmt.Sprintf("n%d", count),
+		ID:          id,
 		Description: description,
 		Data:        make([]*Data, 0),
 	}
@@ -444,8 +466,20 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 	}
 
 	count := len(gr.Edges)
+	var id string
+	for found := true; found; {
+		id = fmt.Sprintf("e%d", count)
+		found = false
+		for _, e := range gr.Edges {
+			if e.ID == id {
+				found = true
+				count++
+				break
+			}
+		}
+	}
 	edge = &Edge{
-		ID:          fmt.Sprintf("e%d", count),
+		ID:          id,
 		Source:      source.ID,
 		Target:      target.ID,
 		Description: description,
