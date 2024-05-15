@@ -942,7 +942,7 @@ func TestGraphML_stringValueIfSupported(t *testing.T) {
 	assert.Equal(t, testString, res)
 }
 
-func TestGraphML_1Indexed(t *testing.T) {
+func TestGraphML_AutomaticKeysGeneration(t *testing.T) {
 	graphFile, err := os.Open("../data/test_graph_1_indexed.xml")
 	require.NoError(t, err, "failed to open file")
 	// decode
@@ -957,6 +957,14 @@ func TestGraphML_1Indexed(t *testing.T) {
 	assert.Equal(t, "g2", graph.ID)
 
 	key, err := gml.RegisterKey(KeyForAll, "test", "test key", reflect.String, nil)
+	require.NoError(t, err, "failed to add key")
+	assert.Equal(t, "d2", key.ID)
+
+	// remove key and check that key ID generated correctly afterward
+	err = gml.RemoveKey(key)
+	require.NoError(t, err, "failed to remove key")
+
+	key, err = gml.RegisterKey(KeyForAll, "test", "test key", reflect.String, nil)
 	require.NoError(t, err, "failed to add key")
 	assert.Equal(t, "d2", key.ID)
 
