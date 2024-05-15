@@ -279,12 +279,7 @@ func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, 
 	if key := gml.GetKey(name, target); key != nil {
 		return nil, errors.New(fmt.Sprintf("key with given name already registered: %s", name))
 	}
-	count := len(gml.Keys)
-	var id string
-	for found := true; found; _, found = gml.keysById[id] {
-		id = fmt.Sprintf("d%d", count)
-		count++
-	}
+	id := gml.nextKeyId()
 	key = &Key{
 		ID:          id,
 		Target:      target,
@@ -309,6 +304,18 @@ func (gml *GraphML) RegisterKey(target KeyForElement, name, description string, 
 	return key, nil
 }
 
+func (gml *GraphML) nextKeyId() string {
+	count := len(gml.Keys)
+	var id string
+	for found := true; found; _, found = gml.keysById[id] {
+		id = fmt.Sprintf("d%d", count)
+		count++
+	}
+	return id
+}
+
+// RemoveKeyByName removes data key with specified name from target element.
+// Returns error if key is not found in target element.
 func (gml *GraphML) RemoveKeyByName(target KeyForElement, name string) error {
 	if key := gml.GetKey(name, target); key == nil {
 		return errors.New("key no found")
@@ -319,6 +326,7 @@ func (gml *GraphML) RemoveKeyByName(target KeyForElement, name string) error {
 
 // RemoveKey removes a key from the GraphML and all the associated attributes
 // in all the target elements.
+// Returns error if key is not found in any target element.
 func (gml *GraphML) RemoveKey(key *Key) error {
 	var found bool
 	var i int
@@ -374,7 +382,6 @@ func (gml *GraphML) GetKey(name string, target KeyForElement) *Key {
 
 // AddGraph creates new Graph and add it to the root GraphML
 func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attributes map[string]interface{}) (graph *Graph, err error) {
-	count := len(gml.Graphs)
 	var edgeDirection string
 	switch edgeDefault {
 	case EdgeDirectionDirected:
@@ -385,18 +392,7 @@ func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attr
 		return nil, errors.New("default edge direction must be provided")
 	}
 
-	var id string
-	for found := true; found; {
-		id = fmt.Sprintf("g%d", count)
-		found = false
-		for _, g := range gml.Graphs {
-			if g.ID == id {
-				found = true
-				count++
-				break
-			}
-		}
-	}
+	id := gml.nextGraphId()
 	graph = &Graph{
 		ID:             id,
 		EdgeDefault:    edgeDirection,
@@ -418,14 +414,26 @@ func (gml *GraphML) AddGraph(description string, edgeDefault EdgeDirection, attr
 	return graph, nil
 }
 
+func (gml *GraphML) nextGraphId() string {
+	count := len(gml.Graphs)
+	var id string
+	for found := true; found; {
+		id = fmt.Sprintf("g%d", count)
+		found = false
+		for _, g := range gml.Graphs {
+			if g.ID == id {
+				found = true
+				count++
+				break
+			}
+		}
+	}
+	return id
+}
+
 // AddNode adds node to the graph with provided additional attributes and description
 func (gr *Graph) AddNode(attributes map[string]interface{}, description string) (node *Node, err error) {
-	count := len(gr.Nodes)
-	var id string
-	for found := true; found; _, found = gr.nodesMap[id] {
-		id = fmt.Sprintf("n%d", count)
-		count++
-	}
+	id := gr.nextNodeId()
 	node = &Node{
 		ID:          id,
 		Description: description,
@@ -441,6 +449,16 @@ func (gr *Graph) AddNode(attributes map[string]interface{}, description string) 
 	gr.Nodes = append(gr.Nodes, node)
 	gr.nodesMap[node.ID] = node
 	return node, nil
+}
+
+func (gr *Graph) nextNodeId() string {
+	count := len(gr.Nodes)
+	var id string
+	for found := true; found; _, found = gr.nodesMap[id] {
+		id = fmt.Sprintf("n%d", count)
+		count++
+	}
+	return id
 }
 
 // GetNode method to test if node with given id exists. If node exists it will be returned, otherwise nil returned
@@ -465,19 +483,7 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 		return nil, errors.New("edge already added to the graph")
 	}
 
-	count := len(gr.Edges)
-	var id string
-	for found := true; found; {
-		id = fmt.Sprintf("e%d", count)
-		found = false
-		for _, e := range gr.Edges {
-			if e.ID == id {
-				found = true
-				count++
-				break
-			}
-		}
-	}
+	id := gr.nextEdgeId()
 	edge = &Edge{
 		ID:          id,
 		Source:      source.ID,
@@ -489,6 +495,8 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 		edge.Directed = "true"
 	case EdgeDirectionUndirected:
 		edge.Directed = "false"
+	default:
+		// ignore
 	}
 
 	// add attributes
@@ -502,6 +510,23 @@ func (gr *Graph) AddEdge(source, target *Node, attributes map[string]interface{}
 	gr.edgesMap[edgeIdentifier(source.ID, target.ID)] = edge
 
 	return edge, nil
+}
+
+func (gr *Graph) nextEdgeId() string {
+	count := len(gr.Edges)
+	var id string
+	for found := true; found; {
+		id = fmt.Sprintf("e%d", count)
+		found = false
+		for _, e := range gr.Edges {
+			if e.ID == id {
+				found = true
+				count++
+				break
+			}
+		}
+	}
+	return id
 }
 
 // GetEdge method to test if edge exists between given nodes. If edge exists it will be returned, otherwise nil returned
